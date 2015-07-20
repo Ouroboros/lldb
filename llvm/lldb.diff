@@ -1,0 +1,65 @@
+diff --git a/source/Initialization/SystemInitializerCommon.cpp b/source/Initialization/SystemInitializerCommon.cpp
+index 51f32a2..a07d6ad 100644
+--- a/source/Initialization/SystemInitializerCommon.cpp
++++ b/source/Initialization/SystemInitializerCommon.cpp
+@@ -38,10 +38,12 @@
+ 
+ #if defined(__APPLE__)
+ #include "Plugins/DynamicLoader/Darwin-Kernel/DynamicLoaderDarwinKernel.h"
+-#include "Plugins/ObjectFile/Mach-O/ObjectFileMachO.h"
+ #include "Plugins/Platform/MacOSX/PlatformDarwinKernel.h"
+ #endif
+ 
++#include "Plugins/ObjectFile/Mach-O/ObjectFileMachO.h"
++#include "Plugins/ObjectFile/Mach-O/ObjectFileMachO.cpp"
++
+ #if defined(__linux__)
+ #include "Plugins/Process/POSIX/ProcessPOSIXLog.h"
+ #endif
+@@ -131,8 +133,8 @@ SystemInitializerCommon::Initialize()
+ #if defined(__APPLE__)
+     DynamicLoaderDarwinKernel::Initialize();
+     PlatformDarwinKernel::Initialize();
+-    ObjectFileMachO::Initialize();
+ #endif
++    ObjectFileMachO::Initialize();
+ #if defined(__linux__)
+     static ConstString g_linux_log_name("linux");
+     ProcessPOSIXLog::Initialize(g_linux_log_name);
+@@ -172,9 +174,9 @@ SystemInitializerCommon::Terminate()
+ 
+ #if defined(__APPLE__)
+     DynamicLoaderDarwinKernel::Terminate();
+-    ObjectFileMachO::Terminate();
+     PlatformDarwinKernel::Terminate();
+ #endif
++    ObjectFileMachO::Terminate();
+ 
+ #if defined(__WIN32__)
+     ProcessWindowsLog::Terminate();
+diff --git a/source/Plugins/Process/Utility/RegisterContextDarwin_arm.cpp b/source/Plugins/Process/Utility/RegisterContextDarwin_arm.cpp
+index 4138a6a..d8c77bf 100644
+--- a/source/Plugins/Process/Utility/RegisterContextDarwin_arm.cpp
++++ b/source/Plugins/Process/Utility/RegisterContextDarwin_arm.cpp
+@@ -7,7 +7,7 @@
+ //
+ //===----------------------------------------------------------------------===//
+ 
+-#if defined(__APPLE__)
++#if 1 //defined(__APPLE__)
+ 
+ #include "RegisterContextDarwin_arm.h"
+ 
+diff --git a/source/Plugins/Process/Utility/RegisterContextDarwin_arm64.cpp b/source/Plugins/Process/Utility/RegisterContextDarwin_arm64.cpp
+index e08a873..1da3edd 100644
+--- a/source/Plugins/Process/Utility/RegisterContextDarwin_arm64.cpp
++++ b/source/Plugins/Process/Utility/RegisterContextDarwin_arm64.cpp
+@@ -7,7 +7,7 @@
+ //
+ //===----------------------------------------------------------------------===//
+ 
+-#if defined(__APPLE__)
++#if 1 //defined(__APPLE__)
+ 
+ #include "RegisterContextDarwin_arm64.h"
+ 
