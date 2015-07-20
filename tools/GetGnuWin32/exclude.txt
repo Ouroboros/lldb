@@ -1,0 +1,22 @@
+# ----------------------------------------------------
+# 
+# exclude.txt -- Packages not wanted in any version
+#                (unless overruled by include.txt)
+#
+# ----------------------------------------------------
+#
+cpp             # Documentation only. Files should be
+                # extracted to doc\cpp, but they aren't.
+		# So special treatment is needed.
+fileutils       # Is now included within coreutils
+gdlib           # <gdlib> is the ancestor of <gd>
+libc            # Belongs to obsolet <glibc-doc-2.2.4>
+libio           # Belongs to obsolet <gcc-doc-2.95.2>
+libm            # Belongs to obsolet <gcc-doc-2.95.2>
+libttf          # Belongs to obsolet <freetype-1.4>
+regex-spencer   # We have already <regex>. Spencer colides
+                #  with the <file-4.13> package.
+sh-utils        # Is now included within coreutils
+standards       # Belongs to obsolet <gcc-doc-2.95.2>
+stat            # Is now included within coreutils
+textutils       # Is now included within coreutils

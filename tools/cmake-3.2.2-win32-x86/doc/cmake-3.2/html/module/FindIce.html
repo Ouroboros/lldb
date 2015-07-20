@@ -1,0 +1,196 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+  <title>FindIce &mdash; CMake 3.2.2 Documentation</title>
+
+    
+    <link rel="stylesheet" href="../_static/cmake.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.2.2',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="shortcut icon" href="../_static/cmake-favicon.ico"/>
+    <link rel="top" title="CMake 3.2.2 Documentation" href="../index.html" />
+    <link rel="up" title="cmake-modules(7)" href="../manual/cmake-modules.7.html" />
+    <link rel="next" title="FindIcotool" href="FindIcotool.html" />
+    <link rel="prev" title="FindHTMLHelp" href="FindHTMLHelp.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="FindIcotool.html" title="FindIcotool"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="FindHTMLHelp.html" title="FindHTMLHelp"
+             accesskey="P">previous</a> |</li>
+  <li>
+    <img src="../_static/cmake-logo-16.png" alt=""
+         style="vertical-align: middle; margin-top: -2px" />
+  </li>
+  <li>
+    <a href="http://www.cmake.org/">CMake</a> &raquo;
+  </li>
+  <li>
+    <a href="../index.html">3.2.2 Documentation</a> &raquo;
+  </li>
+
+          <li><a href="../manual/cmake-modules.7.html" accesskey="U">cmake-modules(7)</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="findice">
+<span id="module:FindIce"></span><h1>FindIce<a class="headerlink" href="#findice" title="Permalink to this headline">¶</a></h1>
+<p>Find the ZeroC Internet Communication Engine (ICE) programs,
+libraries and datafiles.</p>
+<p>This module supports multiple components.
+Components can include any of: <tt class="docutils literal"><span class="pre">Freeze</span></tt>, <tt class="docutils literal"><span class="pre">Glacier2</span></tt>, <tt class="docutils literal"><span class="pre">Ice</span></tt>,
+<tt class="docutils literal"><span class="pre">IceBox</span></tt>, <tt class="docutils literal"><span class="pre">IceDB</span></tt>, <tt class="docutils literal"><span class="pre">IceGrid</span></tt>, <tt class="docutils literal"><span class="pre">IcePatch</span></tt>, <tt class="docutils literal"><span class="pre">IceSSL</span></tt>,
+<tt class="docutils literal"><span class="pre">IceStorm</span></tt>, <tt class="docutils literal"><span class="pre">IceUtil</span></tt>, <tt class="docutils literal"><span class="pre">IceXML</span></tt>, or <tt class="docutils literal"><span class="pre">Slice</span></tt>.</p>
+<p>This module reports information about the Ice installation in
+several variables.  General variables:</p>
+<div class="highlight-python"><pre>Ice_VERSION - Ice release version
+Ice_FOUND - true if the main programs and libraries were found
+Ice_LIBRARIES - component libraries to be linked
+Ice_INCLUDE_DIRS - the directories containing the Ice headers
+Ice_SLICE_DIRS - the directories containing the Ice slice interface
+                 definitions</pre>
+</div>
+<p>Ice programs are reported in:</p>
+<div class="highlight-python"><pre>Ice_SLICE2CPP_EXECUTABLE - path to slice2cpp executable
+Ice_SLICE2CS_EXECUTABLE - path to slice2cs executable
+Ice_SLICE2FREEZEJ_EXECUTABLE - path to slice2freezej executable
+Ice_SLICE2FREEZE_EXECUTABLE - path to slice2freeze executable
+Ice_SLICE2HTML_EXECUTABLE - path to slice2html executable
+Ice_SLICE2JAVA_EXECUTABLE - path to slice2java executable
+Ice_SLICE2PHP_EXECUTABLE - path to slice2php executable
+Ice_SLICE2PY_EXECUTABLE - path to slice2py executable
+Ice_SLICE2RB_EXECUTABLE - path to slice2rb executable</pre>
+</div>
+<p>Ice component libraries are reported in:</p>
+<div class="highlight-python"><pre>Ice_&lt;C&gt;_FOUND - ON if component was found
+Ice_&lt;C&gt;_LIBRARIES - libraries for component</pre>
+</div>
+<p>Note that <tt class="docutils literal"><span class="pre">&lt;C&gt;</span></tt> is the uppercased name of the component.</p>
+<p>This module reads hints about search results from:</p>
+<div class="highlight-python"><pre>Ice_HOME - the root of the Ice installation</pre>
+</div>
+<p>The environment variable <tt class="docutils literal"><span class="pre">ICE_HOME</span></tt> may also be used; the
+Ice_HOME variable takes precedence.</p>
+<p>The following cache variables may also be set:</p>
+<div class="highlight-python"><pre>Ice_&lt;P&gt;_EXECUTABLE - the path to executable &lt;P&gt;
+Ice_INCLUDE_DIR - the directory containing the Ice headers
+Ice_SLICE_DIR - the directory containing the Ice slice interface
+                definitions
+Ice_&lt;C&gt;_LIBRARY - the library for component &lt;C&gt;</pre>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">In most cases none of the above variables will require setting,
+unless multiple Ice versions are available and a specific version
+is required.  On Windows, the most recent version of Ice will be
+found through the registry.  On Unix, the programs, headers and
+libraries will usually be in standard locations, but Ice_SLICE_DIRS
+might not be automatically detected (commonly known locations are
+searched).  All the other variables are defaulted using Ice_HOME,
+if set.  It&#8217;s possible to set Ice_HOME and selectively specify
+alternative locations for the other components; this might be
+required for e.g. newer versions of Visual Studio if the
+heuristics are not sufficient to identify the correct programs and
+libraries for the specific Visual Studio version.</p>
+</div>
+<p>Other variables one may set to control this module are:</p>
+<div class="highlight-python"><pre>Ice_DEBUG - Set to ON to enable debug output from FindIce.</pre>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="FindHTMLHelp.html"
+                        title="previous chapter">FindHTMLHelp</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="FindIcotool.html"
+                        title="next chapter">FindIcotool</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/module/FindIce.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="FindIcotool.html" title="FindIcotool"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="FindHTMLHelp.html" title="FindHTMLHelp"
+             >previous</a> |</li>
+  <li>
+    <img src="../_static/cmake-logo-16.png" alt=""
+         style="vertical-align: middle; margin-top: -2px" />
+  </li>
+  <li>
+    <a href="http://www.cmake.org/">CMake</a> &raquo;
+  </li>
+  <li>
+    <a href="../index.html">3.2.2 Documentation</a> &raquo;
+  </li>
+
+          <li><a href="../manual/cmake-modules.7.html" >cmake-modules(7)</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2000-2015 Kitware, Inc..
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b3.
+    </div>
+  </body>
+</html>

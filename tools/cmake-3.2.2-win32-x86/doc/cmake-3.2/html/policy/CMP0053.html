@@ -1,0 +1,174 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+  <title>CMP0053 &mdash; CMake 3.2.2 Documentation</title>
+
+    
+    <link rel="stylesheet" href="../_static/cmake.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.2.2',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="shortcut icon" href="../_static/cmake-favicon.ico"/>
+    <link rel="top" title="CMake 3.2.2 Documentation" href="../index.html" />
+    <link rel="up" title="cmake-policies(7)" href="../manual/cmake-policies.7.html" />
+    <link rel="next" title="CMP0054" href="CMP0054.html" />
+    <link rel="prev" title="CMP0052" href="CMP0052.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="CMP0054.html" title="CMP0054"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="CMP0052.html" title="CMP0052"
+             accesskey="P">previous</a> |</li>
+  <li>
+    <img src="../_static/cmake-logo-16.png" alt=""
+         style="vertical-align: middle; margin-top: -2px" />
+  </li>
+  <li>
+    <a href="http://www.cmake.org/">CMake</a> &raquo;
+  </li>
+  <li>
+    <a href="../index.html">3.2.2 Documentation</a> &raquo;
+  </li>
+
+          <li><a href="../manual/cmake-policies.7.html" accesskey="U">cmake-policies(7)</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="cmp0053">
+<span id="policy:CMP0053"></span><h1>CMP0053<a class="headerlink" href="#cmp0053" title="Permalink to this headline">¶</a></h1>
+<p>Simplify variable reference and escape sequence evaluation.</p>
+<p>CMake 3.1 introduced a much faster implementation of evaluation of the
+<a class="reference internal" href="../manual/cmake-language.7.html#variable-references"><em>Variable References</em></a> and <a class="reference internal" href="../manual/cmake-language.7.html#escape-sequences"><em>Escape Sequences</em></a> documented in the
+<span class="target" id="index-0-manual:cmake-language(7)"></span><a class="reference internal" href="../manual/cmake-language.7.html#manual:cmake-language(7)" title="cmake-language(7)"><tt class="xref cmake cmake-manual docutils literal"><span class="pre">cmake-language(7)</span></tt></a> manual.  While the behavior is identical
+to the legacy implementation in most cases, some corner cases were
+cleaned up to simplify the behavior.  Specifically:</p>
+<ul>
+<li><p class="first">Expansion of <tt class="docutils literal"><span class="pre">&#64;VAR&#64;</span></tt> reference syntax defined by the
+<span class="target" id="index-0-command:configure_file"></span><a class="reference internal" href="../command/configure_file.html#command:configure_file" title="configure_file"><tt class="xref cmake cmake-command docutils literal"><span class="pre">configure_file()</span></tt></a> and <span class="target" id="index-0-command:string"></span><a class="reference internal" href="../command/string.html#command:string" title="string"><tt class="xref cmake cmake-command docutils literal"><span class="pre">string(CONFIGURE)</span></tt></a>
+commands is no longer performed in other contexts.</p>
+</li>
+<li><p class="first">Literal <tt class="docutils literal"><span class="pre">${VAR}</span></tt> reference syntax may contain only
+alphanumeric characters (<tt class="docutils literal"><span class="pre">A-Z</span></tt>, <tt class="docutils literal"><span class="pre">a-z</span></tt>, <tt class="docutils literal"><span class="pre">0-9</span></tt>) and
+the characters <tt class="docutils literal"><span class="pre">_</span></tt>, <tt class="docutils literal"><span class="pre">.</span></tt>, <tt class="docutils literal"><span class="pre">/</span></tt>, <tt class="docutils literal"><span class="pre">-</span></tt>, and <tt class="docutils literal"><span class="pre">+</span></tt>.
+Variables with other characters in their name may still
+be referenced indirectly, e.g.</p>
+<div class="highlight-cmake"><div class="highlight"><pre><span class="nb">set</span><span class="p">(</span><span class="s">varname</span> <span class="s2">&quot;otherwise &amp; disallowed $ characters&quot;</span><span class="p">)</span>
+<span class="nb">message</span><span class="p">(</span><span class="s2">&quot;${${varname}}&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">The setting of policy <span class="target" id="index-0-policy:CMP0010"></span><a class="reference internal" href="CMP0010.html#policy:CMP0010" title="CMP0010"><tt class="xref cmake cmake-policy docutils literal"><span class="pre">CMP0010</span></tt></a> is not considered,
+so improper variable reference syntax is always an error.</p>
+</li>
+<li><p class="first">More characters are allowed to be escaped in variable names.
+Previously, only <tt class="docutils literal"><span class="pre">()#&quot;</span> <span class="pre">\&#64;^</span></tt> were valid characters to
+escape. Now any non-alphanumeric, non-semicolon, non-NUL
+character may be escaped following the <tt class="docutils literal"><span class="pre">escape_identity</span></tt>
+production in the <a class="reference internal" href="../manual/cmake-language.7.html#escape-sequences"><em>Escape Sequences</em></a> section of the
+<span class="target" id="index-1-manual:cmake-language(7)"></span><a class="reference internal" href="../manual/cmake-language.7.html#manual:cmake-language(7)" title="cmake-language(7)"><tt class="xref cmake cmake-manual docutils literal"><span class="pre">cmake-language(7)</span></tt></a> manual.</p>
+</li>
+</ul>
+<p>The <tt class="docutils literal"><span class="pre">OLD</span></tt> behavior for this policy is to honor the legacy behavior for
+variable references and escape sequences.  The <tt class="docutils literal"><span class="pre">NEW</span></tt> behavior is to
+use the simpler variable expansion and escape sequence evaluation rules.</p>
+<p>This policy was introduced in CMake version 3.1.
+CMake version 3.2.2 warns when the policy is not set and uses
+<tt class="docutils literal"><span class="pre">OLD</span></tt> behavior.  Use the <span class="target" id="index-0-command:cmake_policy"></span><a class="reference internal" href="../command/cmake_policy.html#command:cmake_policy" title="cmake_policy"><tt class="xref cmake cmake-command docutils literal"><span class="pre">cmake_policy()</span></tt></a> command to set
+it to <tt class="docutils literal"><span class="pre">OLD</span></tt> or <tt class="docutils literal"><span class="pre">NEW</span></tt> explicitly.</p>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="CMP0052.html"
+                        title="previous chapter">CMP0052</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="CMP0054.html"
+                        title="next chapter">CMP0054</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/policy/CMP0053.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="CMP0054.html" title="CMP0054"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="CMP0052.html" title="CMP0052"
+             >previous</a> |</li>
+  <li>
+    <img src="../_static/cmake-logo-16.png" alt=""
+         style="vertical-align: middle; margin-top: -2px" />
+  </li>
+  <li>
+    <a href="http://www.cmake.org/">CMake</a> &raquo;
+  </li>
+  <li>
+    <a href="../index.html">3.2.2 Documentation</a> &raquo;
+  </li>
+
+          <li><a href="../manual/cmake-policies.7.html" >cmake-policies(7)</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2000-2015 Kitware, Inc..
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b3.
+    </div>
+  </body>
+</html>

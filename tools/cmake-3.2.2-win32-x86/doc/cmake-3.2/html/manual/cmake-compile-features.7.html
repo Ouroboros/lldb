@@ -1,0 +1,407 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+  <title>cmake-compile-features(7) &mdash; CMake 3.2.2 Documentation</title>
+
+    
+    <link rel="stylesheet" href="../_static/cmake.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.2.2',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="shortcut icon" href="../_static/cmake-favicon.ico"/>
+    <link rel="top" title="CMake 3.2.2 Documentation" href="../index.html" />
+    <link rel="next" title="cmake-developer(7)" href="cmake-developer.7.html" />
+    <link rel="prev" title="ctest_upload" href="../command/ctest_upload.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="cmake-developer.7.html" title="cmake-developer(7)"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="../command/ctest_upload.html" title="ctest_upload"
+             accesskey="P">previous</a> |</li>
+  <li>
+    <img src="../_static/cmake-logo-16.png" alt=""
+         style="vertical-align: middle; margin-top: -2px" />
+  </li>
+  <li>
+    <a href="http://www.cmake.org/">CMake</a> &raquo;
+  </li>
+  <li>
+    <a href="../index.html">3.2.2 Documentation</a> &raquo;
+  </li>
+ 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <span class="target" id="manual:cmake-compile-features(7)"></span><div class="section" id="cmake-compile-features-7">
+<h1><a class="toc-backref" href="#id1">cmake-compile-features(7)</a><a class="headerlink" href="#cmake-compile-features-7" title="Permalink to this headline">¶</a></h1>
+<div class="contents topic" id="contents">
+<p class="topic-title first">Contents</p>
+<ul class="simple">
+<li><a class="reference internal" href="#cmake-compile-features-7" id="id1">cmake-compile-features(7)</a><ul>
+<li><a class="reference internal" href="#introduction" id="id2">Introduction</a></li>
+<li><a class="reference internal" href="#compile-feature-requirements" id="id3">Compile Feature Requirements</a></li>
+<li><a class="reference internal" href="#optional-compile-features" id="id4">Optional Compile Features</a></li>
+<li><a class="reference internal" href="#conditional-compilation-options" id="id5">Conditional Compilation Options</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id2">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>Project source code may depend on, or be conditional on, the availability
+of certain features of the compiler.  There are three use-cases which arise:
+<a class="reference internal" href="#compile-feature-requirements">Compile Feature Requirements</a>, <a class="reference internal" href="#optional-compile-features">Optional Compile Features</a>
+and <a class="reference internal" href="#conditional-compilation-options">Conditional Compilation Options</a>.</p>
+<p>While features are typically specified in programming language standards,
+CMake provides a primary user interface based on granular handling of
+the features, not the language standard that introduced the feature.</p>
+<p>The <span class="target" id="index-0-prop_gbl:CMAKE_C_KNOWN_FEATURES"></span><a class="reference internal" href="../prop_gbl/CMAKE_C_KNOWN_FEATURES.html#prop_gbl:CMAKE_C_KNOWN_FEATURES" title="CMAKE_C_KNOWN_FEATURES"><tt class="xref cmake cmake-prop_gbl docutils literal"><span class="pre">CMAKE_C_KNOWN_FEATURES</span></tt></a> and
+<span class="target" id="index-0-prop_gbl:CMAKE_CXX_KNOWN_FEATURES"></span><a class="reference internal" href="../prop_gbl/CMAKE_CXX_KNOWN_FEATURES.html#prop_gbl:CMAKE_CXX_KNOWN_FEATURES" title="CMAKE_CXX_KNOWN_FEATURES"><tt class="xref cmake cmake-prop_gbl docutils literal"><span class="pre">CMAKE_CXX_KNOWN_FEATURES</span></tt></a> global properties contain all the
+features known to CMake, regardless of compiler support for the feature.
+The <span class="target" id="index-0-variable:CMAKE_C_COMPILE_FEATURES"></span><a class="reference internal" href="../variable/CMAKE_C_COMPILE_FEATURES.html#variable:CMAKE_C_COMPILE_FEATURES" title="CMAKE_C_COMPILE_FEATURES"><tt class="xref cmake cmake-variable docutils literal"><span class="pre">CMAKE_C_COMPILE_FEATURES</span></tt></a> and
+<span class="target" id="index-0-variable:CMAKE_CXX_COMPILE_FEATURES"></span><a class="reference internal" href="../variable/CMAKE_CXX_COMPILE_FEATURES.html#variable:CMAKE_CXX_COMPILE_FEATURES" title="CMAKE_CXX_COMPILE_FEATURES"><tt class="xref cmake cmake-variable docutils literal"><span class="pre">CMAKE_CXX_COMPILE_FEATURES</span></tt></a> variables contain all features
+CMake knows are known to the compiler, regardless of language standard
+or compile flags needed to use them.</p>
+<p>Features known to CMake are named mostly following the same convention
+as the Clang feature test macros.  The are some exceptions, such as
+CMake using <tt class="docutils literal"><span class="pre">cxx_final</span></tt> and <tt class="docutils literal"><span class="pre">cxx_override</span></tt> instead of the single
+<tt class="docutils literal"><span class="pre">cxx_override_control</span></tt> used by Clang.</p>
+</div>
+<div class="section" id="compile-feature-requirements">
+<h2><a class="toc-backref" href="#id3">Compile Feature Requirements</a><a class="headerlink" href="#compile-feature-requirements" title="Permalink to this headline">¶</a></h2>
+<p>Compile feature requirements may be specified with the
+<span class="target" id="index-0-command:target_compile_features"></span><a class="reference internal" href="../command/target_compile_features.html#command:target_compile_features" title="target_compile_features"><tt class="xref cmake cmake-command docutils literal"><span class="pre">target_compile_features()</span></tt></a> command.  For example, if a target must
+be compiled with compiler support for the
+<span class="target" id="index-1-prop_gbl:CMAKE_CXX_KNOWN_FEATURES"></span><a class="reference internal" href="../prop_gbl/CMAKE_CXX_KNOWN_FEATURES.html#prop_gbl:CMAKE_CXX_KNOWN_FEATURES" title="CMAKE_CXX_KNOWN_FEATURES"><tt class="xref cmake cmake-prop_gbl docutils literal"><span class="pre">cxx_constexpr</span></tt></a> feature:</p>
+<div class="highlight-cmake"><div class="highlight"><pre><span class="nb">add_library</span><span class="p">(</span><span class="s">mylib</span> <span class="s">requires_constexpr.cpp</span><span class="p">)</span>
+<span class="nb">target_compile_features</span><span class="p">(</span><span class="s">mylib</span> <span class="s">PRIVATE</span> <span class="s">cxx_constexpr</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>In processing the requirement for the <tt class="docutils literal"><span class="pre">cxx_constexpr</span></tt> feature,
+<span class="target" id="index-0-manual:cmake(1)"></span><a class="reference internal" href="cmake.1.html#manual:cmake(1)" title="cmake(1)"><tt class="xref cmake cmake-manual docutils literal"><span class="pre">cmake(1)</span></tt></a> will ensure that the in-use C++ compiler is capable
+of the feature, and will add any necessary flags such as <tt class="docutils literal"><span class="pre">-std=gnu++11</span></tt>
+to the compile lines of C++ files in the <tt class="docutils literal"><span class="pre">mylib</span></tt> target.  A
+<tt class="docutils literal"><span class="pre">FATAL_ERROR</span></tt> is issued if the compiler is not capable of the
+feature.</p>
+<p>The exact compile flags and language standard are deliberately not part
+of the user interface for this use-case.  CMake will compute the
+appropriate compile flags to use by considering the features specified
+for each target.</p>
+<p>Such compile flags are added even if the compiler supports the
+particular feature without the flag. For example, the GNU compiler
+supports variadic templates (with a warning) even if <tt class="docutils literal"><span class="pre">-std=gnu++98</span></tt> is
+used.  CMake adds the <tt class="docutils literal"><span class="pre">-std=gnu++11</span></tt> flag if <tt class="docutils literal"><span class="pre">cxx_variadic_templates</span></tt>
+is specified as a requirement.</p>
+<p>In the above example, <tt class="docutils literal"><span class="pre">mylib</span></tt> requires <tt class="docutils literal"><span class="pre">cxx_constexpr</span></tt> when it
+is built itself, but consumers of <tt class="docutils literal"><span class="pre">mylib</span></tt> are not required to use a
+compiler which supports <tt class="docutils literal"><span class="pre">cxx_constexpr</span></tt>.  If the interface of
+<tt class="docutils literal"><span class="pre">mylib</span></tt> does require the <tt class="docutils literal"><span class="pre">cxx_constexpr</span></tt> feature (or any other
+known feature), that may be specified with the <tt class="docutils literal"><span class="pre">PUBLIC</span></tt> or
+<tt class="docutils literal"><span class="pre">INTERFACE</span></tt> signatures of <span class="target" id="index-1-command:target_compile_features"></span><a class="reference internal" href="../command/target_compile_features.html#command:target_compile_features" title="target_compile_features"><tt class="xref cmake cmake-command docutils literal"><span class="pre">target_compile_features()</span></tt></a>:</p>
+<div class="highlight-cmake"><div class="highlight"><pre><span class="nb">add_library</span><span class="p">(</span><span class="s">mylib</span> <span class="s">requires_constexpr.cpp</span><span class="p">)</span>
+<span class="c"># cxx_constexpr is a usage-requirement</span>
+<span class="nb">target_compile_features</span><span class="p">(</span><span class="s">mylib</span> <span class="s">PUBLIC</span> <span class="s">cxx_constexpr</span><span class="p">)</span>
+
+<span class="c"># main.cpp will be compiled with -std=gnu++11 on GNU for cxx_constexpr.</span>
+<span class="nb">add_executable</span><span class="p">(</span><span class="s">myexe</span> <span class="s">main.cpp</span><span class="p">)</span>
+<span class="nb">target_link_libraries</span><span class="p">(</span><span class="s">myexe</span> <span class="s">mylib</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Feature requirements are evaluated transitively by consuming the link
+implementation.  See <span class="target" id="index-0-manual:cmake-buildsystem(7)"></span><a class="reference internal" href="cmake-buildsystem.7.html#manual:cmake-buildsystem(7)" title="cmake-buildsystem(7)"><tt class="xref cmake cmake-manual docutils literal"><span class="pre">cmake-buildsystem(7)</span></tt></a> for more on
+transitive behavior of build properties and usage requirements.</p>
+<p>Because the <span class="target" id="index-0-prop_tgt:CXX_EXTENSIONS"></span><a class="reference internal" href="../prop_tgt/CXX_EXTENSIONS.html#prop_tgt:CXX_EXTENSIONS" title="CXX_EXTENSIONS"><tt class="xref cmake cmake-prop_tgt docutils literal"><span class="pre">CXX_EXTENSIONS</span></tt></a> target property is <tt class="docutils literal"><span class="pre">ON</span></tt> by default,
+CMake uses extended variants of language dialects by default, such as
+<tt class="docutils literal"><span class="pre">-std=gnu++11</span></tt> instead of <tt class="docutils literal"><span class="pre">-std=c++11</span></tt>.  That target property may be
+set to <tt class="docutils literal"><span class="pre">OFF</span></tt> to use the non-extended variant of the dialect flag.  Note
+that because most compilers enable extensions by default, this could
+expose cross-platform bugs in user code or in the headers of third-party
+dependencies.</p>
+</div>
+<div class="section" id="optional-compile-features">
+<h2><a class="toc-backref" href="#id4">Optional Compile Features</a><a class="headerlink" href="#optional-compile-features" title="Permalink to this headline">¶</a></h2>
+<p>Compile features may be preferred if available, without creating a hard
+requirement.  For example, a library may provides alternative
+implementations depending on whether the <tt class="docutils literal"><span class="pre">cxx_variadic_templates</span></tt>
+feature is available:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span class="cp">#if Foo_COMPILER_CXX_VARIADIC_TEMPLATES</span>
+<span class="k">template</span><span class="o">&lt;</span><span class="kt">int</span> <span class="n">I</span><span class="p">,</span> <span class="kt">int</span><span class="p">...</span> <span class="n">Is</span><span class="o">&gt;</span>
+<span class="k">struct</span> <span class="n">Interface</span><span class="p">;</span>
+
+<span class="k">template</span><span class="o">&lt;</span><span class="kt">int</span> <span class="n">I</span><span class="o">&gt;</span>
+<span class="k">struct</span> <span class="n">Interface</span><span class="o">&lt;</span><span class="n">I</span><span class="o">&gt;</span>
+<span class="p">{</span>
+  <span class="k">static</span> <span class="kt">int</span> <span class="n">accumulate</span><span class="p">()</span>
+  <span class="p">{</span>
+    <span class="k">return</span> <span class="n">I</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="k">template</span><span class="o">&lt;</span><span class="kt">int</span> <span class="n">I</span><span class="p">,</span> <span class="kt">int</span><span class="p">...</span> <span class="n">Is</span><span class="o">&gt;</span>
+<span class="k">struct</span> <span class="n">Interface</span>
+<span class="p">{</span>
+  <span class="k">static</span> <span class="kt">int</span> <span class="n">accumulate</span><span class="p">()</span>
+  <span class="p">{</span>
+    <span class="k">return</span> <span class="n">I</span> <span class="o">+</span> <span class="n">Interface</span><span class="o">&lt;</span><span class="n">Is</span><span class="p">...</span><span class="o">&gt;::</span><span class="n">accumulate</span><span class="p">();</span>
+  <span class="p">}</span>
+<span class="p">};</span>
+<span class="cp">#else</span>
+<span class="k">template</span><span class="o">&lt;</span><span class="kt">int</span> <span class="n">I1</span><span class="p">,</span> <span class="kt">int</span> <span class="n">I2</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="kt">int</span> <span class="n">I3</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="kt">int</span> <span class="n">I4</span> <span class="o">=</span> <span class="mi">0</span><span class="o">&gt;</span>
+<span class="k">struct</span> <span class="n">Interface</span>
+<span class="p">{</span>
+  <span class="k">static</span> <span class="kt">int</span> <span class="n">accumulate</span><span class="p">()</span> <span class="p">{</span> <span class="k">return</span> <span class="n">I1</span> <span class="o">+</span> <span class="n">I2</span> <span class="o">+</span> <span class="n">I3</span> <span class="o">+</span> <span class="n">I4</span><span class="p">;</span> <span class="p">}</span>
+<span class="p">};</span>
+<span class="cp">#endif</span>
+</pre></div>
+</div>
+<p>Such an interface depends on using the correct preprocessor defines for the
+compiler features.  CMake can generate a header file containing such
+defines using the <span class="target" id="index-0-module:WriteCompilerDetectionHeader"></span><a class="reference internal" href="../module/WriteCompilerDetectionHeader.html#module:WriteCompilerDetectionHeader" title="WriteCompilerDetectionHeader"><tt class="xref cmake cmake-module docutils literal"><span class="pre">WriteCompilerDetectionHeader</span></tt></a> module.  The
+module contains the <tt class="docutils literal"><span class="pre">write_compiler_detection_header</span></tt> function which
+accepts parameters to control the content of the generated header file:</p>
+<div class="highlight-cmake"><div class="highlight"><pre><span class="nb">write_compiler_detection_header</span><span class="p">(</span>
+  <span class="s">FILE</span> <span class="s2">&quot;${CMAKE_CURRENT_BINARY_DIR}/foo_compiler_detection.h&quot;</span>
+  <span class="s">PREFIX</span> <span class="s">Foo</span>
+  <span class="s">COMPILERS</span> <span class="s">GNU</span>
+  <span class="s">FEATURES</span>
+    <span class="s">cxx_variadic_templates</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>Such a header file may be used internally in the source code of a project,
+and it may be installed and used in the interface of library code.</p>
+<p>For each feature listed in <tt class="docutils literal"><span class="pre">FEATURES</span></tt>, a preprocessor definition
+is created in the header file, and defined to either <tt class="docutils literal"><span class="pre">1</span></tt> or <tt class="docutils literal"><span class="pre">0</span></tt>.</p>
+<p>Additionally, some features call for additional defines, such as the
+<tt class="docutils literal"><span class="pre">cxx_final</span></tt> and <tt class="docutils literal"><span class="pre">cxx_override</span></tt> features. Rather than being used in
+<tt class="docutils literal"><span class="pre">#ifdef</span></tt> code, the <tt class="docutils literal"><span class="pre">final</span></tt> keyword is abstracted by a symbol
+which is defined to either <tt class="docutils literal"><span class="pre">final</span></tt>, a compiler-specific equivalent, or
+to empty.  That way, C++ code can be written to unconditionally use the
+symbol, and compiler support determines what it is expanded to:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span class="k">struct</span> <span class="n">Interface</span> <span class="p">{</span>
+  <span class="k">virtual</span> <span class="kt">void</span> <span class="n">Execute</span><span class="p">()</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="k">struct</span> <span class="n">Concrete</span> <span class="n">Foo_FINAL</span> <span class="p">{</span>
+  <span class="kt">void</span> <span class="n">Execute</span><span class="p">()</span> <span class="n">Foo_OVERRIDE</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p>In this case, <tt class="docutils literal"><span class="pre">Foo_FINAL</span></tt> will expand to <tt class="docutils literal"><span class="pre">final</span></tt> if the
+compiler supports the keyword, or to empty otherwise.</p>
+<p>In this use-case, the CMake code will wish to enable a particular language
+standard if available from the compiler. The <span class="target" id="index-0-prop_tgt:CXX_STANDARD"></span><a class="reference internal" href="../prop_tgt/CXX_STANDARD.html#prop_tgt:CXX_STANDARD" title="CXX_STANDARD"><tt class="xref cmake cmake-prop_tgt docutils literal"><span class="pre">CXX_STANDARD</span></tt></a>
+target property variable may be set to the desired language standard
+for a particular target, and the <span class="target" id="index-0-variable:CMAKE_CXX_STANDARD"></span><a class="reference internal" href="../variable/CMAKE_CXX_STANDARD.html#variable:CMAKE_CXX_STANDARD" title="CMAKE_CXX_STANDARD"><tt class="xref cmake cmake-variable docutils literal"><span class="pre">CMAKE_CXX_STANDARD</span></tt></a> may be
+set to influence all following targets:</p>
+<div class="highlight-cmake"><div class="highlight"><pre><span class="nb">write_compiler_detection_header</span><span class="p">(</span>
+  <span class="s">FILE</span> <span class="s2">&quot;${CMAKE_CURRENT_BINARY_DIR}/foo_compiler_detection.h&quot;</span>
+  <span class="s">PREFIX</span> <span class="s">Foo</span>
+  <span class="s">COMPILERS</span> <span class="s">GNU</span>
+  <span class="s">FEATURES</span>
+    <span class="s">cxx_final</span> <span class="s">cxx_override</span>
+<span class="p">)</span>
+
+<span class="c"># Includes foo_compiler_detection.h and uses the Foo_FINAL symbol</span>
+<span class="c"># which will expand to &#39;final&#39; if the compiler supports the requested</span>
+<span class="c"># CXX_STANDARD.</span>
+<span class="nb">add_library</span><span class="p">(</span><span class="s">foo</span> <span class="s">foo.cpp</span><span class="p">)</span>
+<span class="nb">set_property</span><span class="p">(</span><span class="s">TARGET</span> <span class="s">foo</span> <span class="s">PROPERTY</span> <span class="s">CXX_STANDARD</span> <span class="s">11</span><span class="p">)</span>
+
+<span class="c"># Includes foo_compiler_detection.h and uses the Foo_FINAL symbol</span>
+<span class="c"># which will expand to &#39;final&#39; if the compiler supports the feature,</span>
+<span class="c"># even though CXX_STANDARD is not set explicitly.  The requirement of</span>
+<span class="c"># cxx_constexpr causes CMake to set CXX_STANDARD internally, which</span>
+<span class="c"># affects the compile flags.</span>
+<span class="nb">add_library</span><span class="p">(</span><span class="s">foo_impl</span> <span class="s">foo_impl.cpp</span><span class="p">)</span>
+<span class="nb">target_compile_features</span><span class="p">(</span><span class="s">foo_impl</span> <span class="s">PRIVATE</span> <span class="s">cxx_constexpr</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The <tt class="docutils literal"><span class="pre">write_compiler_detection_header</span></tt> function also creates compatibility
+code for other features which have standard equivalents.  For example, the
+<tt class="docutils literal"><span class="pre">cxx_static_assert</span></tt> feature is emulated with a template and abstracted
+via the <tt class="docutils literal"><span class="pre">&lt;PREFIX&gt;_STATIC_ASSERT</span></tt> and <tt class="docutils literal"><span class="pre">&lt;PREFIX&gt;_STATIC_ASSERT_MSG</span></tt>
+function-macros.</p>
+</div>
+<div class="section" id="conditional-compilation-options">
+<h2><a class="toc-backref" href="#id5">Conditional Compilation Options</a><a class="headerlink" href="#conditional-compilation-options" title="Permalink to this headline">¶</a></h2>
+<p>Libraries may provide entirely different header files depending on
+requested compiler features.</p>
+<p>For example, a header at <tt class="docutils literal"><span class="pre">with_variadics/interface.h</span></tt> may contain:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span class="k">template</span><span class="o">&lt;</span><span class="kt">int</span> <span class="n">I</span><span class="p">,</span> <span class="kt">int</span><span class="p">...</span> <span class="n">Is</span><span class="o">&gt;</span>
+<span class="k">struct</span> <span class="n">Interface</span><span class="p">;</span>
+
+<span class="k">template</span><span class="o">&lt;</span><span class="kt">int</span> <span class="n">I</span><span class="o">&gt;</span>
+<span class="k">struct</span> <span class="n">Interface</span><span class="o">&lt;</span><span class="n">I</span><span class="o">&gt;</span>
+<span class="p">{</span>
+  <span class="k">static</span> <span class="kt">int</span> <span class="n">accumulate</span><span class="p">()</span>
+  <span class="p">{</span>
+    <span class="k">return</span> <span class="n">I</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="k">template</span><span class="o">&lt;</span><span class="kt">int</span> <span class="n">I</span><span class="p">,</span> <span class="kt">int</span><span class="p">...</span> <span class="n">Is</span><span class="o">&gt;</span>
+<span class="k">struct</span> <span class="n">Interface</span>
+<span class="p">{</span>
+  <span class="k">static</span> <span class="kt">int</span> <span class="n">accumulate</span><span class="p">()</span>
+  <span class="p">{</span>
+    <span class="k">return</span> <span class="n">I</span> <span class="o">+</span> <span class="n">Interface</span><span class="o">&lt;</span><span class="n">Is</span><span class="p">...</span><span class="o">&gt;::</span><span class="n">accumulate</span><span class="p">();</span>
+  <span class="p">}</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p>while a header at <tt class="docutils literal"><span class="pre">no_variadics/interface.h</span></tt> may contain:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span class="k">template</span><span class="o">&lt;</span><span class="kt">int</span> <span class="n">I1</span><span class="p">,</span> <span class="kt">int</span> <span class="n">I2</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="kt">int</span> <span class="n">I3</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="kt">int</span> <span class="n">I4</span> <span class="o">=</span> <span class="mi">0</span><span class="o">&gt;</span>
+<span class="k">struct</span> <span class="n">Interface</span>
+<span class="p">{</span>
+  <span class="k">static</span> <span class="kt">int</span> <span class="n">accumulate</span><span class="p">()</span> <span class="p">{</span> <span class="k">return</span> <span class="n">I1</span> <span class="o">+</span> <span class="n">I2</span> <span class="o">+</span> <span class="n">I3</span> <span class="o">+</span> <span class="n">I4</span><span class="p">;</span> <span class="p">}</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p>It would be possible to write a abstraction <tt class="docutils literal"><span class="pre">interface.h</span></tt> header
+containing something like:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span class="cp">#include &quot;foo_compiler_detection.h&quot;</span>
+<span class="cp">#if Foo_COMPILER_CXX_VARIADIC_TEMPLATES</span>
+<span class="cp">#include &quot;with_variadics/interface.h&quot;</span>
+<span class="cp">#else</span>
+<span class="cp">#include &quot;no_variadics/interface.h&quot;</span>
+<span class="cp">#endif</span>
+</pre></div>
+</div>
+<p>However this could be unmaintainable if there are many files to
+abstract. What is needed is to use alternative include directories
+depending on the compiler capabilities.</p>
+<p>CMake provides a <tt class="docutils literal"><span class="pre">COMPILE_FEATURES</span></tt>
+<span class="target" id="index-0-manual:cmake-generator-expressions(7)"></span><a class="reference internal" href="cmake-generator-expressions.7.html#manual:cmake-generator-expressions(7)" title="cmake-generator-expressions(7)"><tt class="xref cmake cmake-manual docutils literal"><span class="pre">generator</span> <span class="pre">expression</span></tt></a> to implement
+such conditions.  This may be used with the build-property commands such as
+<span class="target" id="index-0-command:target_include_directories"></span><a class="reference internal" href="../command/target_include_directories.html#command:target_include_directories" title="target_include_directories"><tt class="xref cmake cmake-command docutils literal"><span class="pre">target_include_directories()</span></tt></a> and <span class="target" id="index-0-command:target_link_libraries"></span><a class="reference internal" href="../command/target_link_libraries.html#command:target_link_libraries" title="target_link_libraries"><tt class="xref cmake cmake-command docutils literal"><span class="pre">target_link_libraries()</span></tt></a>
+to set the appropriate <span class="target" id="index-1-manual:cmake-buildsystem(7)"></span><a class="reference internal" href="cmake-buildsystem.7.html#manual:cmake-buildsystem(7)" title="cmake-buildsystem(7)"><tt class="xref cmake cmake-manual docutils literal"><span class="pre">buildsystem</span></tt></a>
+properties:</p>
+<div class="highlight-cmake"><div class="highlight"><pre><span class="nb">add_library</span><span class="p">(</span><span class="s">foo</span> <span class="s">INTERFACE</span><span class="p">)</span>
+<span class="nb">set</span><span class="p">(</span><span class="s">with_variadics</span> <span class="o">${</span><span class="nv">CMAKE_CURRENT_SOURCE_DIR</span><span class="o">}</span><span class="s">/with_variadics</span><span class="p">)</span>
+<span class="nb">set</span><span class="p">(</span><span class="s">no_variadics</span> <span class="o">${</span><span class="nv">CMAKE_CURRENT_SOURCE_DIR</span><span class="o">}</span><span class="s">/no_variadics</span><span class="p">)</span>
+<span class="nb">target_link_libraries</span><span class="p">(</span><span class="s">foo</span>
+  <span class="s">INTERFACE</span>
+    <span class="s2">&quot;$&lt;$&lt;COMPILE_FEATURES:cxx_variadic_templates&gt;:${with_variadics}&gt;&quot;</span>
+    <span class="s2">&quot;$&lt;$&lt;NOT:$&lt;COMPILE_FEATURES:cxx_variadic_templates&gt;&gt;:${no_variadics}&gt;&quot;</span>
+  <span class="p">)</span>
+</pre></div>
+</div>
+<p>Consuming code then simply links to the <tt class="docutils literal"><span class="pre">foo</span></tt> target as usual and uses
+the feature-appropriate include directory</p>
+<div class="highlight-cmake"><div class="highlight"><pre><span class="nb">add_executable</span><span class="p">(</span><span class="s">consumer_with</span> <span class="s">consumer_with.cpp</span><span class="p">)</span>
+<span class="nb">target_link_libraries</span><span class="p">(</span><span class="s">consumer_with</span> <span class="s">foo</span><span class="p">)</span>
+<span class="nb">set_property</span><span class="p">(</span><span class="s">TARGET</span> <span class="s">consumer_with</span> <span class="s">CXX_STANDARD</span> <span class="s">11</span><span class="p">)</span>
+
+<span class="nb">add_executable</span><span class="p">(</span><span class="s">consumer_no</span> <span class="s">consumer_no.cpp</span><span class="p">)</span>
+<span class="nb">target_link_libraries</span><span class="p">(</span><span class="s">consumer_no</span> <span class="s">foo</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">cmake-compile-features(7)</a><ul>
+<li><a class="reference internal" href="#introduction">Introduction</a></li>
+<li><a class="reference internal" href="#compile-feature-requirements">Compile Feature Requirements</a></li>
+<li><a class="reference internal" href="#optional-compile-features">Optional Compile Features</a></li>
+<li><a class="reference internal" href="#conditional-compilation-options">Conditional Compilation Options</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="../command/ctest_upload.html"
+                        title="previous chapter">ctest_upload</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="cmake-developer.7.html"
+                        title="next chapter">cmake-developer(7)</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/manual/cmake-compile-features.7.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="cmake-developer.7.html" title="cmake-developer(7)"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="../command/ctest_upload.html" title="ctest_upload"
+             >previous</a> |</li>
+  <li>
+    <img src="../_static/cmake-logo-16.png" alt=""
+         style="vertical-align: middle; margin-top: -2px" />
+  </li>
+  <li>
+    <a href="http://www.cmake.org/">CMake</a> &raquo;
+  </li>
+  <li>
+    <a href="../index.html">3.2.2 Documentation</a> &raquo;
+  </li>
+ 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2000-2015 Kitware, Inc..
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b3.
+    </div>
+  </body>
+</html>

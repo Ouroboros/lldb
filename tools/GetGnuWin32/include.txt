@@ -1,0 +1,13 @@
+# ----------------------------------------------------
+# 
+# include.txt -- Packages wanted in a certain version
+#
+# ----------------------------------------------------
+#
+# To keep a package on a certain stable version, list
+# it here with its version and type. Examples:
+#
+# wget-1.11.4-1-bin # use old wget
+# wget-1.11.4-1-doc # use old doc
+# wget-1.11.4-1-lib # use old lib
+#

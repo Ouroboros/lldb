@@ -1,0 +1,15 @@
+-------------------------------------------------------------------
+
+TODO.TXT: Next Steps for Developing an Automated GnuWin32 Download
+
+author  : Mathias Michaelis <michaelis@tcnet.ch>
+          Jay Satiro <raysatiro@users.sourceforge.net>
+date    : November 15, 2009
+version : 0.6.3
+
+Copyright (c) 2009 by Mathias Michaelis <michaelis@tcnet.ch>
+Copyright (c) 2009 by Jay Satiro <raysatiro@users.sourceforge.net>
+
+-------------------------------------------------------------------
+
+1) A GUI maybe ;)

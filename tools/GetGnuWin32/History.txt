@@ -1,0 +1,701 @@
+# -------------------------------------------------------------------
+# 
+# Release History of the GetGnuWin32 project development
+# 
+# authors: Mathias Michaelis <michaelis@tcnet.ch>
+#          Jay Satiro <raysatiro@users.sourceforge.net>
+# date   : November 15, 2009
+# version: 0.6.3
+# 
+# Copyright (c) 2009 by Mathias Michaelis <michaelis@tcnet.ch>
+# Copyright (c) 2009 by Jay Satiro <raysatiro@users.sourceforge.net>
+# 
+# -------------------------------------------------------------------
+# 
+# Permission is granted to copy, distribute and/or modify this
+# document under the terms of the GNU Free Documentation License,
+# Version 1.2 or any later version published by the Free Software
+# Foundation; with no Invariant Sections, no Front-Cover Texts, and no
+# Back-Cover Texts.  A copy of the license is included in the file
+# LICENSE.TXT
+#
+
+
+# # #
+RELEASE_NUMBER = 0.6.3
+RELEASE_DATE   = November 15, 2009
+COPYRIGHT_YEAR = 2009
+#
+# Added Features:
+# * Major overhaul of batch and C code (findhash)
+# * SHA1 hash verification for gnuwin32 packages using findhash
+# * GetGnuWin32 auto-update with RSA digital signature verification
+# * Several updated utilities for GetGnuWin32 (see bin dir)
+# * Progressive status notification when downloading or installing.
+# * Direct download and installation, for example:
+#   download
+#   install C:\gnuwin32
+# * Optional (prompts during install) updated supplemental utilities.
+#   This was necessary mainly due to security issues in several 
+#   heavily used yet outdated gnuwin32 programs like OpenSSL, 
+#   which although not GPL is available through the gnuwin32 project.
+#
+# Removed Features:
+# * None?
+#
+# Removed Bugs:
+# * This release was prompted mainly by changes to sourceforge.net,
+#   and security issues in programs GetGnuWin32 depends on.
+#
+#   As of this release GetGnuWin32 no longer attempts to parse
+#   sourceforge's website project pages. Instead, a digitally signed 
+#   update containing a master list of projects and hashes is 
+#   downloaded. Any verified update is applied automatically when 
+#   running download.bat, and the program and its dependencies 
+#   can be updated as well if there are security issues (ie OpenSSL).
+#
+# Acknowledgements:
+# * The authors would like to thank the creators of pancakes & syrup,
+#   the maintainers of OpenSSL, InfoZip, all GNU projects,
+#   and anyone who has taken the time to report a bug. Thank you.
+#
+# # #
+
+# # #
+RELEASE_NUMBER = 0.6.22
+RELEASE_DATE   = Oct 07, 2009
+COPYRIGHT_YEAR = 2009
+#
+# Added Features:
+# * None
+#
+# Removed Features:
+# * None
+#
+# Removed Bugs:
+# * The layout of the web site on http://sourceforge.net was complete
+#   changed (alas not always positively). The new version of
+#   getgnuwin32 was adopted to these new circumstances.
+#   Note that Sourceforge no longer has a "latest releases" section.
+#   And latest releases didn't always work properly for gnuwin32
+#   packages anyway.  Changes to sourceforge's website have previously
+#   affected GetGnuWin32's ability to download packages. Given the
+#   frequency with which this has happened, I'm convinced at some
+#   point we as developers will need to parse and then compile a
+#   master list released from the server, rather than our current
+#   method of having clients parse on every download.
+#
+# Acknowledgements:
+# * Jay Satiro <raysatiro@users.sourceforge.net> did all programming
+#   work. He thus is know a co-author of this project.
+#
+# # #
+
+# # #
+RELEASE_NUMBER = 0.6.21
+RELEASE_DATE   = Feb 19, 2009
+COPYRIGHT_YEAR = 2009
+#
+# Added Features:
+# * None
+#
+# Removed Features:
+# * None
+#
+# Removed Bugs:
+# * All .BAT and .TXT as well as temporary files within the
+#   getgnuwin32-0.6.20 package had unix style line endings.  Cause:
+#   When creating the getgnuwin32-0.6.20 package from the
+#   getgnuwin32-0.6.20-src package, the new version 4.1.5.2738 of sed
+#   creates these unix style line endings. Solution: Apply the command
+#   line option -T.
+#
+# * The -d option of download.bat no longer worked. This is fixed now.
+#
+# Acknowledgements:
+# * Jay Satiro <raysatiro@users.sourceforge.net> remarked the unix file
+#   ending bug instantly and let me know about it.
+#
+# # #
+
+# # #
+RELEASE_NUMBER = 0.6.20
+RELEASE_DATE   = Feb 18, 2009
+COPYRIGHT_YEAR = 2009
+#
+# Added Features:
+# * download.bat has adopted to the changes of the web site.
+#
+# * install.bat should now work also on windows vista.
+#
+# * Some binaries that are needed by the scripts of this software
+#   were replaced by their actual versions.
+#
+# Removed Features:
+# * The command line option -a for download.bat that was introduced
+#   by release 0.6.19 was now removed. download.bat behaves now as
+#   if -a whould have been always specified.
+#
+# Removed Bugs:
+# * (none)
+#
+# Acknowledgements:
+# * Thanks to Jay Satiro <raysatiro@users.sourceforge.net>. He has
+#   done all programming mentioned here. Due to his work the
+#   getgnuwin32 project is alive again.
+#
+# # #
+
+# # #
+RELEASE_NUMBER = 0.6.19
+RELEASE_DATE   = May 17, 2007
+COPYRIGHT_YEAR = 2007
+#
+# Added Features:
+# * If download.bat fails to get the gnuwin32 main project site
+#   located at
+#
+#   https://sourceforge.net/project/showfiles.php?group_id=23617
+#   http://sourceforge.net/project/showfiles.php?group_id=23617
+#
+#   completely, but only a part of it, then it can even use this part
+#   to retrieve all links to the gnuwin32 sub projects. It will then
+#   follow these links to get a complete file list.
+#
+# * With the new command line option -a download.bat can be forced to
+#   behave as if the gnuwin32 main project site would have been
+#   received only partially: It will browse all gnuwin32 sub projects.
+#   This behaviour is more time consuming, but the file list retrieved
+#   in that way is more complete.
+#
+# * The file list that is retrieved by download.bat from the gnuwin32
+#   main projects sites or its sub project sites is saved within a
+#   file getgnuwin32.lst. This file list can be used if there is no
+#   possibility to access one of the gnuwin32 project sites.
+#
+# * With the new command line option -d the use of an already present
+#   file list (named getgnuwin32.lst) can be forced. This file list,
+#   if present, will not be updated if -d is specified.
+#
+# * There are new command line options --help and --version available
+#   for download.bat.
+#
+# Removed Features:
+# * filelist.txt can't be used anymore to let download.bat work even
+#   if there is no access to the gnuwin32 main project site. Use
+#   getgnuwin32.lst instead.
+#
+# Removed Bugs:
+# * (none)
+#
+# Acknowledgements:
+# * (none)
+#
+# # #
+
+# # #
+RELEASE_NUMBER = 0.6.18
+RELEASE_DATE   = January 6, 2007
+COPYRIGHT_YEAR = 2007
+#
+# Added Features:
+# * When downloading the gnuwin32 project site from sourceforge.net,
+#   download.bat now checks for the existence of a line containing the
+#   end tag </html>. If it is missed there, download.bat knows that it
+#   hasn't received the whole gnuwin32 project site and doesn't
+#   continue but takes special actions (see the following features).
+#
+# * If download.bat could not receive the whole gnuwin32 project site
+#   from sourceforge.net, it tries again to get it for maximum 10
+#   times.  Hereby, it applies different parameters every time it
+#   repeats the download: The bit rate is limited more and more and
+#   the protocol is changed between http and https.
+#
+# * download.bat can now be started with a command line option -n (or
+#   /n). With this option, it doesn't download any gnuwin32 packages,
+#   but only the gnuwin32 project site on sourceforge.net, analyse
+#   this site and produces two files: filelist.txt, which contains the
+#   list of all files to be downloaded, and packages.txt, which
+#   contains the list of all packages which the files listed in
+#   filelist.txt belongs to.
+#
+# * If the download of the gnuwin32 project site on sourceforge.net
+#   fails in spite of all above mentioned remedial actions, it doesn't
+#   give up, but looks for a file called filelist.txt containing all
+#   files to be downloaded. If it finds this file, download.bat
+#   continues by using it.
+#
+# Removed Features:
+# * (none)
+#
+# Removed Bugs:
+# * If download.bat receives only a part of the gnuwin32 project site
+#   from sourceforge.net, it doesn't realize that and continues anyway
+#   in some undefined manner.
+#
+# Acknowledgements:
+# * (none)
+#
+# # #
+
+# # #
+RELEASE_NUMBER = 0.6.17
+RELEASE_DATE   = November 25, 2006
+COPYRIGHT_YEAR = 2006
+#
+# Added Features:
+# * (none)
+#
+# Removed Features:
+# * (none)
+#
+# Removed Bugs:
+# * download.bat is broken due to changes of the web interface at
+#   sourceforge.net.
+#
+# Acknowledgements:
+# * Ruslan Gainutdinov <ruslanfg@gmail.com>
+#
+# # #
+
+# # #
+RELEASE_NUMBER = 0.6.16
+RELEASE_DATE   = July 16, 2006
+COPYRIGHT_YEAR = 2006
+#
+# Added Features:
+# * (none)
+#
+# Removed Features:
+# * (none)
+#
+# Removed Bugs:
+# * update-link.bat puts a wrong path into bin\set_gnuwin32.bat.
+#
+# Acknowledgements:
+# * Thanks to Daniel Lundell.
+#
+# # #
+
+# # #
+RELEASE_NUMBER = 0.6.15
+RELEASE_DATE   = July 8, 2006
+COPYRIGHT_YEAR = 2006
+#
+# Added Features:
+# * update-links.bat is improved: It can be run more than once, for
+#   instance whenever the directory gnuwin32 is moved to some other
+#   place. This is important for a gnuwin32 installation that resides
+#   on a memory stick, or if you want to move the installation on a
+#   computer where you have limited access rights.
+#
+# * update-links.bat creates a protocol file update-links.txt the
+#   first time it is run. The second time, it reuses this file to gain
+#   performance. If update-links.txt is deleted, update-links.bat
+#   rebuilds it.
+#
+# * LIMITATION: update-links.bat works only if the folder within the
+#   gnuwin32 installation resides has the name "gnuwin32" (without
+#   quotes).
+#
+# Removed Features:
+# * (none)
+#
+# Removed Bugs:
+# * (none)
+#
+# Acknowledgements:
+# * (none)
+#
+# # #
+
+# # #
+RELEASE_NUMBER = 0.6.14
+RELEASE_DATE   = July 1, 2006
+COPYRIGHT_YEAR = 2006
+#
+# Added Features:
+# * (none)
+#
+# Removed Features:
+# * (none)
+#
+# Removed Bugs:
+# * mkshortcut.exe fails to create valid shortcuts on some system. See
+#   http://sourceforge.net/mailarchive/message.php?msg_id=15437286
+#   http://sourceforge.net/mailarchive/message.php?msg_id=15752932
+#   This bug can't be removed by this batch scripts of course, but
+#   update-links.bat uses the -d option now in the hope that this is a
+#   suitable workaround .
+#
+# Acknowledgements:
+# * I was given the hint by private mail. Thanks to the writer!
+#
+# # #
+
+# # #
+RELEASE_NUMBER = 0.6.13
+RELEASE_DATE   = May 4, 2006
+COPYRIGHT_YEAR = 2006
+#
+# Added Features:
+# * update-links.bat creates a shortcut to %windir%\system32\cmd.exe
+#   with all important environment variables automatically set.
+# * update-links.bat tries to make no assumptions on orphan links
+#   anymore. It now searches these links with the help of the gnuwin32
+#   ls command and updates them.
+#
+# Removed Features:
+# * (none)
+#
+# Removed Bugs:
+# * (none)
+#
+# Acknowledgements:
+# * (none)
+#
+# # #
+
+# # #
+RELEASE_NUMBER = 0.6.12
+RELEASE_DATE   = Mar 13, 2006
+COPYRIGHT_YEAR = 2006
+#
+# Added Features:
+# * A list of one or more mirrors can be specified with the
+#   environment variable GNUWIN32_MIRROR or on the command line.
+# * A command line option -v to make DOWNLOAD.BAT a little bit
+#   verbose.
+#
+# Removed Features:
+# * (none)
+#
+# Removed Bugs:
+# * (none)
+#
+# Acknowledgements:
+# * Martin Mewes <mm@mewes.tv>
+#
+# # #
+
+# # #
+RELEASE_NUMBER = 0.6.11
+RELEASE_DATE   = Feb 17, 2006
+COPYRIGHT_YEAR = 2006
+
+# Added Features:
+# * (none)
+#
+# Removed Features:
+# * (none)
+#
+# Removed Bugs:
+# * Many misspellings and some lacks of clarity.
+#
+# Acknowledgements:
+# * Amores Perros <perryrapp@gmail.com>
+#
+# # #
+
+# # #
+RELEASE_NUMBER = 0.6.10
+RELEASE_DATE   = Jan 7, 2006
+COPYRIGHT_YEAR = 2006
+
+# Removed Bugs:
+# * Some misspellings in EXCLUDE.TXT, INSTALL.BAT and README.TXT.
+#
+# # #
+
+# # #
+RELEASE_NUMBER = 0.6.9
+RELEASE_DATE   = Jan 4, 2006
+COPYRIGHT_YEAR = 2006
+
+# Added Features:
+# * The layout of the gnuwin32 web site has changed. DOWNLOAD.BAT is
+#   now adopted to that and supports the new layout.
+# * Since the new layout of the gnuwin32 web site contains also
+#   package information that can easily be parsed, the generation of
+#   the package lost is more reliable now.
+# * Normalisation of the gnuwin32 project html file is yet better:
+#   Spaces at the beginning of a line are removed.
+#
+# Removed Features:
+# * The old format of the gnuwin32 web site isn't supported anymore.
+#
+# Acknowledgements:
+#
+# * Ryan McCullough <rmccullough@gmail.com>
+#
+# # #
+
+# # #
+RELEASE_NUMBER = 0.6.8
+RELEASE_DATE   = Dec 25, 2005
+COPYRIGHT_YEAR = 2005
+#
+# Added Features:
+# * Improved status messages, especially in UPDATE-LINKS.BAT.
+# * Yet a more structured start menu is created. It contains now the
+#   subfolders doc, man, chm and hlp.
+#
+# Removed Bugs:
+# * Some misspellings
+#
+# Acknowledgements:
+# * Jonathan Burd <jonathan.burd@gmail.com>
+#
+# # #
+
+# # #
+RELEASE_NUMBER = 0.6.7
+RELEASE_DATE   = Nov 22, 2005
+COPYRIGHT_YEAR = 2005
+
+# Added Features:
+# * New wget-1.10.2 from http://xoomer.virgilio.it/hherold/ is used
+#   instead of the wget-1.9. The new wget supports now SSL
+#   connections. The wget-1.10.1 version of gnuwin32 seems not to
+#   support SSL.
+#
+# Removed Bugs:
+# * If the environment variable GNUWIN32_LOAD is defined, DOWNLOAD.BAT
+#   misses to set WGETRC to the correct default value.
+#
+# Acknowledgements:
+# * Mark Gardner <mark.gardner@bms.com>
+#
+# # #
+
+# # #
+RELEASE_NUMBER = 0.6.6
+RELEASE_DATE   = Jul 8, 2005
+COPYRIGHT_YEAR = 2005
+
+# Added Features:
+# * INSTALL.BAT is redesigned and heavily simplified.
+# * UPDATE-LINKS.BAT is redesigned and simplified. Links are not
+#   created anymore by a visual basic script, but with the gnuwin32
+#   utility mkshortcut.exe
+# * The start menu that UPDATE-LINKS.BAT creates now has more
+#   structure: There is a doc and a man subdirectory now.
+#
+# # #
+
+# # #
+RELEASE_NUMBER = 0.6.5
+RELEASE_DATE   = Apr 19, 2005
+COPYRIGHT_YEAR = 2005
+
+# Added Features:
+# * Some formulations are clarified in README.TXT.
+#
+# Removed Bugs:
+# * INSTALL.BAT sometimes fetched olds dll's from one of the
+#   xyz-dep.zip packages and overwrote an already extracted new one.
+#   This problem is solved now by applying the appropriate unzip
+#   options. Thanks to Ryan McCullough.
+#
+# Acknowledgements:
+# * Ryan McCullough <rmccullough@gmail.com>: Thanks for your issue,
+#   that INSTALL.BAT sometimes fetches some old dlls out of one of the
+#   xyz-deb.zip packages and overwrites already extracted new ones.
+#   And even more: Thanks for your server place at
+#   http://getgnuwin32.nooblink.com.
+#
+# # #
+
+# # #
+RELEASE_NUMBER = 0.6.4
+RELEASE_DATE   = Apr 12, 2005
+COPYRIGHT_YEAR = 2005
+
+# Added Features:
+# * DOWNLOAD.BAT now checks if there is already a running wget
+#   installation by inspecting the environment variable WGETRC. If
+#   this variable is not defined, it sets it to the locally
+#   bin\wget.ini file.
+# * README.TXT has more text that explains how to set WGETRC or what
+#   the new file bin\wget.ini is for. Further, it warns that some
+#   windows programs like sort.exe or link.exe my collide with equal
+#   named executables from the gnuwin32 environment.
+# * Some formulations are clarified in README.TXT and INSTALL.BAT
+#
+# Acknowledgements:
+# * Jochen Kuhnhenn <kuhnhenn@web.de> for the idea to have a wget.ini
+#   file within the bin directory that one can adapt for special
+#   purposes.
+#
+# # #
+
+# # #
+RELEASE_NUMBER = 0.6.3
+RELEASE_DATE   = Mar 12, 2005
+COPYRIGHT_YEAR = 2005
+
+# Added Features:
+# * The EXCLUDE.TXT is adopted to the fact that the new coreutils
+#   package contains the programs of many other packages that are
+#   obsolete now.
+#
+# Removed Features
+# * The cygwin_addons folder doesn't contain dd.exe and cygintl-3.dll
+#   anymore. Instead, there are some new sessions of text within the
+#   cygwin_addons\readme.txt file that describes how to use the
+#   gnuwin32 version of that program.
+#
+# # #
+
+# # #
+RELEASE_NUMBER = 0.6.2
+RELEASE_DATE   = Mar 6, 2005
+COPYRIGHT_YEAR = 2005
+
+# Added Features:
+# * The file EXCLUDE.TXT, containing a list of names of packages that
+#   should not be downloaded, can now contain remarks at any place.
+# * A new file INCLUDE.TXT is added. It contains a list of names and
+#   versions of packages that should be kept even if there are newer
+#   versions. Again this file can contain remarks at any place.
+# * The archive myaddons.zip contains now a documentation of sort.exe,
+#   which I got from a woody linux distribution.
+# * New versions of sed.exe (4.1.2) and unzip.exe (5.51) are used.
+#
+# Removed Bugs:
+# * Due to wrong (alphabetical) sorting DOWNLOAD.BAT sometimes got
+#   obsolete packages. Now, two methods for receiving the newest
+#   versions are implemented: DOWNLOAD.BAT uses the first method: It
+#   fetches the packages at the top of every line in the table
+#   available under https://sourceforge.net/project/showfiles.php-
+#   ?group_id=23617. INSTALL.BAT utilise the second method: It works
+#   with a very elaborate sorting algorithm to find the packages with
+#   the newest versions. One can always move the algorithm from
+#   INSTALL.BAT to DOWNLOAD.BAT, but I think this is not necessary.
+# * Update-link.bat should be called optional by the user after having
+#   copied it to the right place. However, until now this script was
+#   called from within INSTALL.BAT.
+# * Update-link copied libintl-2.dll to libintl.dll and libiconv2.dll
+#   to libiconv.dll. This step was bad is now skipped.
+# * When copying files, update-link.bat sometimes overwrites existing
+#   ones. This is now prevented.
+#
+# Acknowledgements:
+# * Paul Moore <pf_moore@yahoo.co.uk>: Great starting aid! Thanks for
+#   your issues!
+#
+# # #
+
+# # #
+RELEASE_NUMBER = 0.5
+RELEASE_DATE   = Feb 28, 2005
+COPYRIGHT_YEAR = 2005
+
+# Added Features:
+# * The file list is now retrieved as a complex html file placed at
+#   https://sourceforge.net/project/showfiles.php?group_id=23617.
+#   This definitely is the official and most actual list. Further more,
+#   it contains more information than a simple textual list: Here it
+#   is clear which archive belongs to which package -- also
+#   DOWNLOAD:BAT doesn't extract all this information.
+# * It is possible to specify the position of the actual files either
+#   as full qualified URL by the environment variable GNUWIN32_LOAD or
+#   simply as a mirror name by GNUWIN32_MIRROR. If both variable are
+#   defined, GNUWIN32_LOAD if used.
+# * There is a text file EXCLUDE.TXT that contains a list of packages
+#   that should not be downloaded. This file was introduced because
+#   there where packages that changed their names with increasing
+#   version number.
+# * The code of INSTALL.BAT is a little bit simplified.
+# * README.TXT is adopted to all this changes.
+#
+# Removed Fearures:
+# * There can't be specified a mirror for the file list anymore. Only
+#   for the actual file position a mirror can be specified.
+#
+# # #
+
+# # #
+RELEASE_NUMBER = 0.4
+RELEASE_DATE   = Feb 19, 2005
+COPYRIGHT_YEAR = 2005
+
+# Added Features:
+# * The server from which the packages were retrieved in the preceding
+#   versions was not the official one and contained only old stuff.
+#   Now the official servers are used. An actual file list is
+#   retrieved form ftp://dl.sourceforge.net/pub/sourceforge/g/gn/gnu-
+#   win32/, the file themselves are retrieved from http://dl.source-
+#   forge.net/sourceforge/gnuwin32/
+# * If the official servers are too slowly, DOWNLOAD.BAT can be
+#   adopted: There are two local variables GNUWIN32_LIST and
+#   GNUWIN32_LOAD to specify some mirrors where to retrieve the file
+#   list and the files from. There is much explaining text.
+# * If a mirror doesn't answer correct, an error message is emitted.
+# * INSTALL.BAT is more careful when creating the texinfo tree: Before
+#   using files or programs, it checks their existence. On error, the
+#   script does not terminate itself, but goes to the next job.
+# * There is a new directory cygwin-addons that contains old versions
+#   of programs from the cygwin project in cases where the
+#   corresponding programs of the gnuwin32 project don't work.
+# * README.TXT contains much more text to explain all this novelties.
+#   It mentions also that the gnuwin32 installation tree should be
+#   copied and not moved to the correct place in order to have the
+#   correct access rights on an NTFS file system. Furthermore, the
+#   configuration of the gnuwin32 package a2ps is explained.
+# * The runnable package is no released as self extracting winrar
+#   archive. Like this it is much more compact than as zip archive.
+#
+# Removed Bugs
+# * update-links emits an error message if no *.lnk files are found
+#   whithin the gnuwin32 installation tree.
+# * Windows doesn't follow links to dlls. So the dll are know copied.
+#
+# # #
+
+# # #
+RELEASE_NUMBER = 0.3
+RELEASE_DATE   = Feb 10, 2005
+COPYRIGHT_YEAR = 2005
+
+# Added Features:
+# * There is a new file bin\myaddons.zip that contains the batch
+#   scripts egrep.bat, fgrep.bat, yacc.bat and zless.bat. INSTALL.BAT
+#   extracts this file into the final installation of the gnuwin32
+#   tree.
+# * A new visual basic script bin\mkshort.vbs is copied by INSTALL.BAT
+#   in the final installation of the gnuwin32 tree. This this script
+#   one can create file shortcuts on the command line or within batch
+#   scripts.
+# * Extracted files whose name contains a spaces are handled better by
+#   INSTALL.BAT.
+# * Almost all *.lnk files in the gnuwin32 packages are orphan
+#   shurtcuts! Therefore, a new batch file update-links.bat exist
+#   which is copied by INSTALL.BAT into the final gnuwin32
+#   installation tree and executed there. Update-links.bat deletes all
+#   those links and create new, correct ones. Whenever the final
+#   gnuwin32 installation tree is moved, update-links.bat must be
+#   executed again.
+# * README.TXT describes the use of update-links.bat.
+#
+# Removed Bugs:
+# * INSTALL.TXT: Some German messages are translated to English.
+#
+# # #
+
+# # #
+RELEASE_NUMBER = 0.1
+RELEASE_DATE   = Feb 4, 2005
+COPYRIGHT_YEAR = 2005
+
+# Added Features:
+# * First release.
+# * DOWNLOAD.BAT: Gnuwin32 packages are downloaded from ftp://ftp-
+#   .franken.de/pub/win32/develop/gnuwin32/mingw32/mirrors/source-
+#   forge2
+# * INSTALL.BAT extracts all packages. Special care is taken to the
+#   contrib and doc subdirectory.
+# * INSTALL.BAT builds a texinfo tree and updates the entries of info
+#   files.
+#
+# # #
