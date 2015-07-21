@@ -32,5 +32,3 @@ cmd/k
 
 rd "%LLVM%\tools\lldb" >NUL 2>NUL
 rd "%LLVM%\tools\clang" >NUL 2>NUL
-
-pause
