@@ -1,11 +1,11 @@
 diff --git a/include/lldb/Core/Module.h b/include/lldb/Core/Module.h
-index 127ddae..d703bca 100644
+index ebbf692..14d49e2 100644
 --- a/include/lldb/Core/Module.h
 +++ b/include/lldb/Core/Module.h
 @@ -704,6 +704,8 @@ public:
      virtual SectionList *
      GetSectionList ();
- 
+
 +    size_t GetModuleSize();
 +
      //------------------------------------------------------------------
@@ -18,7 +18,7 @@ index e587ead..cc9f1ca 100644
 @@ -1086,11 +1086,22 @@ protected:
              m_interpreter.GetDebugger().GetTargetList().SetSelectedTarget(target_sp.get());
          }
-         
+
 +        if (command.GetArgumentCount() == 0)
 +        {
 +            command.SetCommandString("connect://127.0.0.1:4321");
@@ -29,7 +29,7 @@ index e587ead..cc9f1ca 100644
              const char *plugin_name = NULL;
 -            if (!m_options.plugin_name.empty())
 -                plugin_name = m_options.plugin_name.c_str();
-+             if (!m_options.plugin_name.empty())
++            if (!m_options.plugin_name.empty())
 +            {
 +                  plugin_name = m_options.plugin_name.c_str();
 +            }
@@ -37,7 +37,7 @@ index e587ead..cc9f1ca 100644
 +            {
 +                plugin_name = "gdb-remote";
 +            }
- 
+
              const char *remote_url = command.GetArgumentAtIndex(0);
              process = target_sp->CreateProcess (m_interpreter.GetDebugger().GetListener(), plugin_name, NULL).get();
 diff --git a/source/Commands/CommandObjectTarget.cpp b/source/Commands/CommandObjectTarget.cpp
@@ -58,7 +58,7 @@ index 448da0e..e50c434 100644
 @@ -3418,6 +3419,12 @@ protected:
                      dump_object_name = true;
                      break;
- 
+
 +                case 'l':
 +                    {
 +                        strm.Printf("0x%X", module->GetModuleSize());
@@ -84,13 +84,13 @@ index 448da0e..e50c434 100644
                                      }
                                      break;
 diff --git a/source/Core/Module.cpp b/source/Core/Module.cpp
-index eb0359d..a68f9ea 100644
+index 5c5379b..760ce9d 100644
 --- a/source/Core/Module.cpp
 +++ b/source/Core/Module.cpp
-@@ -1337,6 +1337,24 @@ Module::GetSectionList()
+@@ -1338,6 +1338,24 @@ Module::GetSectionList()
      return m_sections_ap.get();
  }
- 
+
 +size_t Module::GetModuleSize()
 +{
 +    SectionList* sections = GetSectionList();
@@ -117,13 +117,13 @@ index 51f32a2..a07d6ad 100644
 --- a/source/Initialization/SystemInitializerCommon.cpp
 +++ b/source/Initialization/SystemInitializerCommon.cpp
 @@ -38,10 +38,12 @@
- 
+
  #if defined(__APPLE__)
  #include "Plugins/DynamicLoader/Darwin-Kernel/DynamicLoaderDarwinKernel.h"
 -#include "Plugins/ObjectFile/Mach-O/ObjectFileMachO.h"
  #include "Plugins/Platform/MacOSX/PlatformDarwinKernel.h"
  #endif
- 
+
 +#include "Plugins/ObjectFile/Mach-O/ObjectFileMachO.h"
 +#include "Plugins/ObjectFile/Mach-O/ObjectFileMachO.cpp"
 +
@@ -141,14 +141,14 @@ index 51f32a2..a07d6ad 100644
      static ConstString g_linux_log_name("linux");
      ProcessPOSIXLog::Initialize(g_linux_log_name);
 @@ -172,9 +174,9 @@ SystemInitializerCommon::Terminate()
- 
+
  #if defined(__APPLE__)
      DynamicLoaderDarwinKernel::Terminate();
 -    ObjectFileMachO::Terminate();
      PlatformDarwinKernel::Terminate();
  #endif
 +    ObjectFileMachO::Terminate();
- 
+
  #if defined(__WIN32__)
      ProcessWindowsLog::Terminate();
 diff --git a/source/Plugins/Process/Utility/RegisterContextDarwin_arm.cpp b/source/Plugins/Process/Utility/RegisterContextDarwin_arm.cpp
@@ -158,12 +158,12 @@ index 4138a6a..d8c77bf 100644
 @@ -7,7 +7,7 @@
  //
  //===----------------------------------------------------------------------===//
- 
+
 -#if defined(__APPLE__)
 +#if 1 //defined(__APPLE__)
- 
+
  #include "RegisterContextDarwin_arm.h"
- 
+
 diff --git a/source/Plugins/Process/Utility/RegisterContextDarwin_arm64.cpp b/source/Plugins/Process/Utility/RegisterContextDarwin_arm64.cpp
 index e08a873..1da3edd 100644
 --- a/source/Plugins/Process/Utility/RegisterContextDarwin_arm64.cpp
@@ -171,9 +171,9 @@ index e08a873..1da3edd 100644
 @@ -7,7 +7,7 @@
  //
  //===----------------------------------------------------------------------===//
- 
+
 -#if defined(__APPLE__)
 +#if 1 //defined(__APPLE__)
- 
+
  #include "RegisterContextDarwin_arm64.h"
- 
+
