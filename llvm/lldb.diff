@@ -1,3 +1,16 @@
+diff --git a/cmake/modules/LLDBConfig.cmake b/cmake/modules/LLDBConfig.cmake
+index 95c009b..ba45a25 100644
+--- a/cmake/modules/LLDBConfig.cmake
++++ b/cmake/modules/LLDBConfig.cmake
+@@ -122,7 +122,7 @@ function(find_python_libs_windows)
+     unset(PYTHON_RELEASE_DLL)
+   endif()
+ 
+-  if (NOT (PYTHON_DEBUG_EXE AND PYTHON_RELEASE_EXE AND PYTHON_DEBUG_LIB AND PYTHON_RELEASE_LIB AND PYTHON_DEBUG_DLL AND PYTHON_RELEASE_DLL))
++  if (NOT (PYTHON_RELEASE_EXE AND PYTHON_RELEASE_LIB AND PYTHON_RELEASE_DLL))
+     message("Python installation is corrupt. Python support will be disabled for this build.")
+     set(LLDB_DISABLE_PYTHON 1 PARENT_SCOPE)
+     return()
 diff --git a/include/lldb/Core/Module.h b/include/lldb/Core/Module.h
 index 35b182a..2a367ba 100644
 --- a/include/lldb/Core/Module.h
