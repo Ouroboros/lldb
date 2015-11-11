@@ -11,10 +11,13 @@ set CLANG=%~dp0llvm\clang
 rd "%LLVM%\tools\lldb" >NUL 2>NUL
 rd "%LLVM%\tools\clang" >NUL 2>NUL
 
-mklink /d "%LLVM%\tools\lldb" "%LLDB%"
-mklink /d "%LLVM%\tools\clang" "%CLANG%"
+mklink /j "%LLVM%\tools\lldb" "%LLDB%"
+mklink /j "%LLVM%\tools\clang" "%CLANG%"
 
-IF NOT [%ERRORLEVEL%] == [0] echo mklink failed && pause
+IF NOT [%ERRORLEVEL%] == [0] (
+    echo mklink failed
+    pause
+)
 
 call "%VS120COMNTOOLS%..\..\VC\vcvarsall.bat" x86
 
@@ -29,7 +32,7 @@ if not exist build.ninja (
 )
 
 echo.
-echo before you run "ninja lldb", you may replace all "/INCREMENTAL" in build.ninja with "/OPT:REF"
+echo before run "ninja lldb", you may replace all "/INCREMENTAL" in build.ninja with "/OPT:REF"
 echo to reduce the binary size
 echo.
 
