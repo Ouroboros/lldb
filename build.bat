@@ -27,7 +27,7 @@ mkdir build
 cd build
 
 if not exist build.ninja (
-    cmake -G Ninja "%~dp0llvm\llvm" -DCMAKE_BUILD_TYPE=RelWithDebInfo -DPYTHON_HOME=%~dp0Python27\x86\ -DPYTHON_EXECUTABLE=%~dp0Python27\x86\python.exe
+    cmake -G Ninja "%~dp0llvm\llvm" -DCMAKE_BUILD_TYPE=RelWithDebInfo -DPYTHON_HOME=%~dp0Python35\x86\ -DPYTHON_EXECUTABLE=%~dp0Python35\x86\python.exe
     call py "%~f0" "%~dp0build\build.ninja"
 )
 
