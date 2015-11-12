@@ -2,3 +2,4 @@
 *.pdb
 build/
 __pycache__/
+_lldb.pyd
