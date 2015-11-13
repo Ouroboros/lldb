@@ -7,8 +7,14 @@ set PATH=%~dp0tools\GetGnuWin32\bin;%~dp0tools\swigwin-3.0.5;%~dp0tools\cmake-3.
 set LLVM=%~dp0llvm\llvm
 set LLDB=%~dp0llvm\lldb
 set CLANG=%~dp0llvm\clang
-set ARCH=amd64
+set ARCH=x86
 set BUILD=build_%ARCH%
+
+if %ARCH% == x86 (
+    set "VSTOOLS=%VS120COMNTOOLS%"
+) else (
+    set "VSTOOLS=%VS140COMNTOOLS%"
+)
 
 rd "%LLVM%\tools\lldb" >NUL 2>NUL
 rd "%LLVM%\tools\clang" >NUL 2>NUL
@@ -21,7 +27,7 @@ IF NOT [%ERRORLEVEL%] == [0] (
     pause
 )
 
-call "%VS140COMNTOOLS%..\..\VC\vcvarsall.bat" %ARCH%
+call "%VSTOOLS%..\..\VC\vcvarsall.bat" %ARCH%
 
 set INCLUDE=%INCLUDE%;%~dp0external
 
