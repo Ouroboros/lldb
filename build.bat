@@ -7,6 +7,8 @@ set PATH=%~dp0tools\GetGnuWin32\bin;%~dp0tools\swigwin-3.0.5;%~dp0tools\cmake-3.
 set LLVM=%~dp0llvm\llvm
 set LLDB=%~dp0llvm\lldb
 set CLANG=%~dp0llvm\clang
+set ARCH=amd64
+set BUILD=build_%ARCH%
 
 rd "%LLVM%\tools\lldb" >NUL 2>NUL
 rd "%LLVM%\tools\clang" >NUL 2>NUL
@@ -19,16 +21,16 @@ IF NOT [%ERRORLEVEL%] == [0] (
     pause
 )
 
-call "%VS120COMNTOOLS%..\..\VC\vcvarsall.bat" x86
+call "%VS140COMNTOOLS%..\..\VC\vcvarsall.bat" %ARCH%
 
 set INCLUDE=%INCLUDE%;%~dp0external
 
-mkdir build
-cd build
+mkdir %BUILD%
+cd %BUILD%
 
 if not exist build.ninja (
-    cmake -G Ninja "%~dp0llvm\llvm" -DCMAKE_BUILD_TYPE=RelWithDebInfo -DPYTHON_HOME=%~dp0Python35\x86\ -DPYTHON_EXECUTABLE=%~dp0Python35\x86\python.exe
-    call py "%~f0" "%~dp0build\build.ninja"
+    cmake -G Ninja "%~dp0llvm\llvm" -DCMAKE_BUILD_TYPE=RelWithDebInfo -DPYTHON_HOME=%~dp0Python35\%ARCH%\ -DPYTHON_EXECUTABLE=%~dp0Python35\%ARCH%\python.exe
+    call py "%~f0" "%~dp0%BUILD%\build.ninja"
 )
 
 echo.
