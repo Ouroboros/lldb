@@ -24,6 +24,87 @@ index 35b182a..2a367ba 100644
      //------------------------------------------------------------------
      /// Notify the module that the file addresses for the Sections have
      /// been updated.
+diff --git a/scripts/Python/python-typemaps.swig b/scripts/Python/python-typemaps.swig
+index ad8569a..b7c4430 100644
+--- a/scripts/Python/python-typemaps.swig
++++ b/scripts/Python/python-typemaps.swig
+@@ -164,10 +164,6 @@
+       $1 = (char *) PyString_AsString($input);
+       $2 = PyString_Size($input);
+    }
+-   else if(PyByteArray_Check($input)) {
+-      $1 = (char *) PyByteArray_AsString($input);
+-      $2 = PyByteArray_Size($input);
+-   }
+    else {
+       PyErr_SetString(PyExc_ValueError, "Expecting a string");
+       return NULL;
+@@ -179,10 +175,6 @@
+       $1 = (char *) PyString_AsString($input);
+       $2 = PyString_Size($input);
+    }
+-   else if(PyByteArray_Check($input)) {
+-      $1 = (char *) PyByteArray_AsString($input);
+-      $2 = PyByteArray_Size($input);
+-   }
+    else {
+       PyErr_SetString(PyExc_ValueError, "Expecting a string");
+       return NULL;
+@@ -190,32 +182,32 @@
+ }
+ // And SBProcess::WriteMemory.
+ %typemap(in) (const void *buf, size_t size) {
+-   if (PyString_Check($input)) {
+-      $1 = (void *) PyString_AsString($input);
+-      $2 = PyString_Size($input);
++   if (PyBytes_Check($input)) {
++      $1 = (void *) PyBytes_AsString($input);
++      $2 = PyBytes_Size($input);
+    }
+    else if(PyByteArray_Check($input)) {
+       $1 = (void *) PyByteArray_AsString($input);
+       $2 = PyByteArray_Size($input);
+    }
+    else {
+-      PyErr_SetString(PyExc_ValueError, "Expecting a string");
++      PyErr_SetString(PyExc_ValueError, "Expecting a bytes or byte array");
+       return NULL;
+    }
+ }
+ 
+ // For SBDebugger::DispatchInput
+ %typemap(in) (const void *data, size_t data_len) {
+-   if (PyString_Check($input)) {
+-      $1 = static_cast<void *>(PyString_AsString($input));
+-      $2 = PyString_Size($input);
++   if (PyBytes_Check($input)) {
++      $1 = static_cast<void *>(PyBytes_AsString($input));
++      $2 = PyBytes_Size($input);
+    }
+    else if(PyByteArray_Check($input)) {
+       $1 = static_cast<void *>(PyByteArray_AsString($input));
+       $2 = PyByteArray_Size($input);
+    }
+    else {
+-      PyErr_SetString(PyExc_ValueError, "Expecting a string or byte array");
++      PyErr_SetString(PyExc_ValueError, "Expecting a bytes or byte array");
+       return NULL;
+    }
+ }
+@@ -242,9 +234,10 @@
+ // See also SBProcess::ReadMemory.
+ %typemap(argout) (void *buf, size_t size) {
+    Py_XDECREF($result);   /* Blow away any previous result */
+-   llvm::StringRef ref(static_cast<const char*>($1), result);
+-   lldb_private::PythonString string(ref);
+-   $result = string.release();
++   // llvm::StringRef ref(static_cast<const char*>($1), result);
++   // lldb_private::PythonString string(ref);
++   // $result = string.release();
++   $result = PyByteArray_FromStringAndSize(static_cast<const char*>($1), result);
+    free($1);
+ }
+ 
 diff --git a/source/Commands/CommandObjectProcess.cpp b/source/Commands/CommandObjectProcess.cpp
 index 02a5832..db1b79d 100644
 --- a/source/Commands/CommandObjectProcess.cpp
