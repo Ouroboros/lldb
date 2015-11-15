@@ -1,1 +1,3 @@
-settings set target.x86-disassembly-flavor intel 
+settings set target.x86-disassembly-flavor intel
+command alias rtc breakpoint set -o -a %1
+command alias pof expression -OAv -- %1
