@@ -5,4 +5,5 @@ command alias conn process connect
 command alias rtc breakpoint set -o -a %1
 command alias pof expression -OAv -- %1
 
-command script import cmds.py
+command script import ..\plugins\cmds.py
+command script import ..\plugins\chisel\fblldb.py
