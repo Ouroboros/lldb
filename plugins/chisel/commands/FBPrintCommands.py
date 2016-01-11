@@ -81,11 +81,16 @@ class FBPrintViewHierarchyCommand(fb.FBCommand):
         printingMethod = '_subtreeDescription'
 
       description = fb.evaluateExpressionValue('(id)[' + arguments[0] + ' ' + printingMethod + ']').GetObjectDescription()
-      if maxDepth > 0:
-        separator = re.escape("   | ")
-        prefixToRemove = separator * maxDepth + " "
-        description += "\n"
-        description = re.sub(r'%s.*\n' % (prefixToRemove), r'', description)
+      if description:
+        description = description.replace('    |', '  |')
+        if maxDepth > 0:
+          separator = re.escape("   | ")
+          prefixToRemove = separator * maxDepth + " "
+          description += "\n"
+          description = re.sub(r'%s.*\n' % (prefixToRemove), r'', description)
+        else:
+          description = '\n'.join([l if not l.startswith('   |') else l[4:] for l in description.splitlines()])
+
       print(description)
 
 
@@ -139,7 +144,7 @@ class FBPrintIsExecutingInAnimationBlockCommand(fb.FBCommand):
 def _printIterative(initialValue, generator):
   indent = 0
   for currentValue in generator(initialValue):
-    print('   | ' * indent + currentValue)
+    print(' | ' * indent + currentValue)
     indent += 1
 
 
