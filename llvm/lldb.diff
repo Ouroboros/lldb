@@ -1,5 +1,5 @@
 diff --git a/cmake/modules/LLDBConfig.cmake b/cmake/modules/LLDBConfig.cmake
-index 95c009b..ba45a25 100644
+index f5247a2..a2a992c 100644
 --- a/cmake/modules/LLDBConfig.cmake
 +++ b/cmake/modules/LLDBConfig.cmake
 @@ -122,7 +122,7 @@ function(find_python_libs_windows)
@@ -24,113 +24,11 @@ index 35b182a..2a367ba 100644
      //------------------------------------------------------------------
      /// Notify the module that the file addresses for the Sections have
      /// been updated.
-diff --git a/scripts/Python/python-typemaps.swig b/scripts/Python/python-typemaps.swig
-index ad8569a..b7c4430 100644
---- a/scripts/Python/python-typemaps.swig
-+++ b/scripts/Python/python-typemaps.swig
-@@ -164,10 +164,6 @@
-       $1 = (char *) PyString_AsString($input);
-       $2 = PyString_Size($input);
-    }
--   else if(PyByteArray_Check($input)) {
--      $1 = (char *) PyByteArray_AsString($input);
--      $2 = PyByteArray_Size($input);
--   }
-    else {
-       PyErr_SetString(PyExc_ValueError, "Expecting a string");
-       return NULL;
-@@ -179,10 +175,6 @@
-       $1 = (char *) PyString_AsString($input);
-       $2 = PyString_Size($input);
-    }
--   else if(PyByteArray_Check($input)) {
--      $1 = (char *) PyByteArray_AsString($input);
--      $2 = PyByteArray_Size($input);
--   }
-    else {
-       PyErr_SetString(PyExc_ValueError, "Expecting a string");
-       return NULL;
-@@ -190,32 +182,32 @@
- }
- // And SBProcess::WriteMemory.
- %typemap(in) (const void *buf, size_t size) {
--   if (PyString_Check($input)) {
--      $1 = (void *) PyString_AsString($input);
--      $2 = PyString_Size($input);
-+   if (PyBytes_Check($input)) {
-+      $1 = (void *) PyBytes_AsString($input);
-+      $2 = PyBytes_Size($input);
-    }
-    else if(PyByteArray_Check($input)) {
-       $1 = (void *) PyByteArray_AsString($input);
-       $2 = PyByteArray_Size($input);
-    }
-    else {
--      PyErr_SetString(PyExc_ValueError, "Expecting a string");
-+      PyErr_SetString(PyExc_ValueError, "Expecting a bytes or byte array");
-       return NULL;
-    }
- }
- 
- // For SBDebugger::DispatchInput
- %typemap(in) (const void *data, size_t data_len) {
--   if (PyString_Check($input)) {
--      $1 = static_cast<void *>(PyString_AsString($input));
--      $2 = PyString_Size($input);
-+   if (PyBytes_Check($input)) {
-+      $1 = static_cast<void *>(PyBytes_AsString($input));
-+      $2 = PyBytes_Size($input);
-    }
-    else if(PyByteArray_Check($input)) {
-       $1 = static_cast<void *>(PyByteArray_AsString($input));
-       $2 = PyByteArray_Size($input);
-    }
-    else {
--      PyErr_SetString(PyExc_ValueError, "Expecting a string or byte array");
-+      PyErr_SetString(PyExc_ValueError, "Expecting a bytes or byte array");
-       return NULL;
-    }
- }
-@@ -242,9 +234,10 @@
- // See also SBProcess::ReadMemory.
- %typemap(argout) (void *buf, size_t size) {
-    Py_XDECREF($result);   /* Blow away any previous result */
--   llvm::StringRef ref(static_cast<const char*>($1), result);
--   lldb_private::PythonString string(ref);
--   $result = string.release();
-+   // llvm::StringRef ref(static_cast<const char*>($1), result);
-+   // lldb_private::PythonString string(ref);
-+   // $result = string.release();
-+   $result = PyByteArray_FromStringAndSize(static_cast<const char*>($1), result);
-    free($1);
- }
- 
-diff --git a/source/Commands/CommandObjectProcess.cpp b/source/Commands/CommandObjectProcess.cpp
-index 02a5832..db1b79d 100644
---- a/source/Commands/CommandObjectProcess.cpp
-+++ b/source/Commands/CommandObjectProcess.cpp
-@@ -1085,11 +1085,16 @@ protected:
-             m_interpreter.GetDebugger().GetTargetList().SetSelectedTarget(target_sp.get());
-         }
-         
-+        if (command.GetArgumentCount() == 0)
-+            command.SetCommandString("connect://127.0.0.1:4321");
-+        
-         if (command.GetArgumentCount() == 1)
-         {
-             const char *plugin_name = NULL;
-             if (!m_options.plugin_name.empty())
-                 plugin_name = m_options.plugin_name.c_str();
-+            else
-+                plugin_name = "gdb-remote";
- 
-             const char *remote_url = command.GetArgumentAtIndex(0);
-             process = target_sp->CreateProcess (m_interpreter.GetDebugger().GetListener(), plugin_name, NULL).get();
 diff --git a/source/Commands/CommandObjectTarget.cpp b/source/Commands/CommandObjectTarget.cpp
-index b530517..fb8c841 100644
+index 95c03e9..d6ac88b 100644
 --- a/source/Commands/CommandObjectTarget.cpp
 +++ b/source/Commands/CommandObjectTarget.cpp
-@@ -3361,8 +3361,9 @@ protected:
+@@ -3362,8 +3362,9 @@ protected:
          bool dump_object_name = false;
          if (m_options.m_format_array.empty())
          {
@@ -141,7 +39,7 @@ index b530517..fb8c841 100644
              m_options.m_format_array.push_back(std::make_pair('f', 0));
              m_options.m_format_array.push_back(std::make_pair('S', 0));
          }
-@@ -3399,6 +3400,12 @@ protected:
+@@ -3400,6 +3401,12 @@ protected:
                      dump_object_name = true;
                      break;
  
@@ -154,7 +52,7 @@ index b530517..fb8c841 100644
                  case 'h':
                  case 'o':
                      // Image header address
-@@ -3423,12 +3430,12 @@ protected:
+@@ -3424,12 +3431,12 @@ protected:
                                          if (format_char == 'o')
                                          {
                                              // Show the offset of slide for the image
@@ -170,10 +68,10 @@ index b530517..fb8c841 100644
                                      }
                                      break;
 diff --git a/source/Core/Module.cpp b/source/Core/Module.cpp
-index 833540e..62d7592 100644
+index a29456f..e6bebd2 100644
 --- a/source/Core/Module.cpp
 +++ b/source/Core/Module.cpp
-@@ -1324,6 +1324,24 @@ Module::GetSectionList()
+@@ -1335,6 +1335,24 @@ Module::GetSectionList()
      return m_sections_ap.get();
  }
  
@@ -199,7 +97,7 @@ index 833540e..62d7592 100644
  Module::SectionFileAddressesChanged ()
  {
 diff --git a/source/Initialization/SystemInitializerCommon.cpp b/source/Initialization/SystemInitializerCommon.cpp
-index 72d0ae3..9c20d91 100644
+index a5e3c11..ab5b944 100644
 --- a/source/Initialization/SystemInitializerCommon.cpp
 +++ b/source/Initialization/SystemInitializerCommon.cpp
 @@ -40,10 +40,12 @@
@@ -226,7 +124,7 @@ index 72d0ae3..9c20d91 100644
  #if defined(__linux__)
      static ConstString g_linux_log_name("linux");
      ProcessPOSIXLog::Initialize(g_linux_log_name);
-@@ -180,9 +182,9 @@ SystemInitializerCommon::Terminate()
+@@ -181,9 +183,9 @@ SystemInitializerCommon::Terminate()
  #if defined(__APPLE__)
      PlatformiOSSimulator::Terminate();
      DynamicLoaderDarwinKernel::Terminate();
@@ -238,7 +136,7 @@ index 72d0ae3..9c20d91 100644
  #if defined(_MSC_VER)
      ProcessWindowsLog::Terminate();
 diff --git a/source/Plugins/Process/Utility/RegisterContextDarwin_arm.cpp b/source/Plugins/Process/Utility/RegisterContextDarwin_arm.cpp
-index 452fb47..fbd49b6 100644
+index aa1bace..760c8e1 100644
 --- a/source/Plugins/Process/Utility/RegisterContextDarwin_arm.cpp
 +++ b/source/Plugins/Process/Utility/RegisterContextDarwin_arm.cpp
 @@ -7,7 +7,7 @@

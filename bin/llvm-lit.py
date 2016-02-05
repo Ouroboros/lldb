@@ -5,7 +5,7 @@ import sys
 
 # Variables configured at build time.
 llvm_source_root = "D:/Desktop/lldb/llvm/llvm"
-llvm_obj_root = "D:/Desktop/lldb/build"
+llvm_obj_root = "D:/Desktop/lldb/build_amd64"
 
 # Make sure we can find the lit package.
 sys.path.insert(0, os.path.join(llvm_source_root, 'utils', 'lit'))
