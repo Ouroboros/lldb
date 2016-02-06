@@ -56,6 +56,10 @@ def lldb_delete_breakpoint(debugger, command, result, internal_dict):
     args = args and str(args[0]) or '-f'
     debugger.HandleCommand('breakpoint del %s' % args)
 
+def lldb_process_kill(debugger, command, result, internal_dict):
+    debugger.HandleCommand('process kill')
+    debugger.HandleCommand('target delete --all')
+
 def __lldb_init_module(debugger, internal_dict):
     self = __name__
 
@@ -69,6 +73,7 @@ def __lldb_init_module(debugger, internal_dict):
         'lldb_set_watchpoint_delete'    : 'hc',
         'lldb_set_watchpoint_list'      : 'hl',
         'lldb_delete_breakpoint'        : 'bc',
+        'lldb_process_kill'             : 'kp',
     }
 
     for k, v in cmds.items():
