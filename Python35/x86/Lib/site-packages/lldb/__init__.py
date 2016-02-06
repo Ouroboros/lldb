@@ -3,6 +3,7 @@
 #
 # Do not make changes to this file unless you know what you are doing--modify
 # the SWIG interface file instead.
+swig_version = (3, 0, 5)
 
 
 
@@ -117,6 +118,8 @@ except AttributeError:
 import uuid
 import re
 import os
+
+import six
 
 
 _lldb.INT32_MAX_swigconstant(_lldb)
@@ -1399,6 +1402,9 @@ eSectionTypeDWARFDebugLoc = _lldb.eSectionTypeDWARFDebugLoc
 
 _lldb.eSectionTypeDWARFDebugMacInfo_swigconstant(_lldb)
 eSectionTypeDWARFDebugMacInfo = _lldb.eSectionTypeDWARFDebugMacInfo
+
+_lldb.eSectionTypeDWARFDebugMacro_swigconstant(_lldb)
+eSectionTypeDWARFDebugMacro = _lldb.eSectionTypeDWARFDebugMacro
 
 _lldb.eSectionTypeDWARFDebugPubNames_swigconstant(_lldb)
 eSectionTypeDWARFDebugPubNames = _lldb.eSectionTypeDWARFDebugPubNames
@@ -4343,7 +4349,7 @@ class SBData(_object):
                 for x in range(*key.indices(self.__len__())):
                     list.append(self.__getitem__(x))
                 return list
-            if not (isinstance(key,(int,long))):
+            if not (isinstance(key,six.integer_types)):
                 raise TypeError('must be int')
             key = key * self.item_size # SBData uses byte-based indexes, but we want to use itemsize-based indexes here
             error = SBError()
@@ -4659,6 +4665,16 @@ class SBDebugger(_object):
             else:
                 print('Unexpected process state: %s, killing process...' % debugger.StateAsCString (state))
                 process.Kill()
+
+    Sometimes you need to create an empty target that will get filled in later.  The most common use for this
+    is to attach to a process by name or pid where you don't know the executable up front.  The most convenient way
+    to do this is:
+
+    target = debugger.CreateTarget('')
+    error = lldb.SBError()
+    process = target.AttachToProcessWithName(debugger.GetListener(), 'PROCESS_NAME', False, error)
+
+    or the equivalent arguments for AttachToProcessWithID.
 
     """
     __swig_setmethods__ = {}
@@ -5066,9 +5082,12 @@ class SBDebugger(_object):
         return _lldb.SBDebugger_SetCloseInputOnEOF(self, b)
 
 
-    def GetCategory(self, category_name):
-        """GetCategory(SBDebugger self, str const * category_name) -> SBTypeCategory"""
-        return _lldb.SBDebugger_GetCategory(self, category_name)
+    def GetCategory(self, *args):
+        """
+        GetCategory(SBDebugger self, str const * category_name) -> SBTypeCategory
+        GetCategory(SBDebugger self, lldb::LanguageType lang_type) -> SBTypeCategory
+        """
+        return _lldb.SBDebugger_GetCategory(self, *args)
 
 
     def CreateCategory(self, category_name):
@@ -6910,6 +6929,11 @@ class SBInstruction(_object):
     def DoesBranch(self):
         """DoesBranch(SBInstruction self) -> bool"""
         return _lldb.SBInstruction_DoesBranch(self)
+
+
+    def HasDelaySlot(self):
+        """HasDelaySlot(SBInstruction self) -> bool"""
+        return _lldb.SBInstruction_HasDelaySlot(self)
 
 
     def Print(self, out):
@@ -9044,7 +9068,7 @@ class SBProcess(_object):
         return _lldb.SBProcess_WriteMemory(self, addr, buf, error)
 
 
-    def ReadCStringFromMemory(self, addr, buf, error):
+    def ReadCStringFromMemory(self, addr, char_buf, error):
         """
         Reads a NULL terminated C string from the current process's address space.
         It returns a python string of the exact length, or truncates the string if
@@ -9058,7 +9082,7 @@ class SBProcess(_object):
         else
             print('error: ', error)
         """
-        return _lldb.SBProcess_ReadCStringFromMemory(self, addr, buf, error)
+        return _lldb.SBProcess_ReadCStringFromMemory(self, addr, char_buf, error)
 
 
     def ReadUnsignedFromMemory(self, addr, byte_size, error):
@@ -9208,6 +9232,11 @@ class SBProcess(_object):
     def IsInstrumentationRuntimePresent(self, type):
         """IsInstrumentationRuntimePresent(SBProcess self, lldb::InstrumentationRuntimeType type) -> bool"""
         return _lldb.SBProcess_IsInstrumentationRuntimePresent(self, type)
+
+
+    def SaveCore(self, file_name):
+        """SaveCore(SBProcess self, str const * file_name) -> SBError"""
+        return _lldb.SBProcess_SaveCore(self, file_name)
 
     def __get_is_alive__(self):
         '''Returns "True" if the process is currently alive, "False" otherwise'''
@@ -11070,6 +11099,11 @@ class SBTarget(_object):
         return _lldb.SBTarget_BreakpointCreateByAddress(self, address)
 
 
+    def BreakpointCreateBySBAddress(self, sb_address):
+        """BreakpointCreateBySBAddress(SBTarget self, SBAddress sb_address) -> SBBreakpoint"""
+        return _lldb.SBTarget_BreakpointCreateBySBAddress(self, sb_address)
+
+
     def GetNumBreakpoints(self):
         """GetNumBreakpoints(SBTarget self) -> uint32_t"""
         return _lldb.SBTarget_GetNumBreakpoints(self)
@@ -11151,7 +11185,24 @@ class SBTarget(_object):
 
 
     def CreateValueFromAddress(self, name, addr, type):
-        """CreateValueFromAddress(SBTarget self, str const * name, SBAddress addr, SBType type) -> SBValue"""
+        """
+        CreateValueFromAddress(SBTarget self, str const * name, SBAddress addr, SBType type) -> SBValue
+
+        Create an SBValue with the given name by treating the memory starting at addr as an entity of type.
+        
+        @param[in] name
+            The name of the resultant SBValue
+        
+        @param[in] addr
+            The address of the start of the memory region to be used.
+        
+        @param[in] type
+            The type to use to interpret the memory starting at addr.
+        
+        @return
+            An SBValue of the given type, may be invalid if there was an error reading
+            the underlying memory.
+        """
         return _lldb.SBTarget_CreateValueFromAddress(self, name, addr, type)
 
 
@@ -14169,6 +14220,11 @@ class SBValue(_object):
         the 'x' member, and the child at index 1 will be the 'y' member
         (the child at index zero won't be a 'Point' instance).
         
+        If you actually need an SBValue that represents the type pointed
+        to by a SBValue for which GetType().IsPointeeType() returns true,
+        regardless of the pointee type, you can do that with the SBValue.Dereference
+        method (or the equivalent deref property).
+        
         Arrays have a preset number of children that can be accessed by
         index and will returns invalid child values for indexes that are
         out of bounds unless the synthetic_allowed is true. In this
@@ -15286,7 +15342,7 @@ class value(object):
                 return self_val == other_val
         raise TypeError("Unknown type %s, No equality operation defined." % str(type(other)))
 
-    def __neq__(self, other):
+    def __ne__(self, other):
         return not self.__eq__(other)
 
 class SBSyntheticValueProvider(object):

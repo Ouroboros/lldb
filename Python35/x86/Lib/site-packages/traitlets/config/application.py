@@ -11,7 +11,6 @@ import logging
 import os
 import re
 import sys
-from copy import deepcopy
 from collections import defaultdict
 
 from decorator import decorator
@@ -22,7 +21,7 @@ from traitlets.config.loader import (
 )
 
 from traitlets.traitlets import (
-    Unicode, List, Enum, Dict, Instance, TraitError
+    Unicode, List, Enum, Dict, Instance, TraitError, observe, observe_compat, default,
 )
 from ipython_genutils.importstring import import_item
 from ipython_genutils.text import indent, wrap_paragraphs, dedent
@@ -83,6 +82,7 @@ def catch_config_error(method, app, *args, **kwargs):
 
 class ApplicationError(Exception):
     pass
+
 
 class LevelFormatter(logging.Formatter):
     """Formatter with additional `highlevel` record
@@ -152,10 +152,13 @@ class Application(SingletonConfigurable):
     # The log level for the application
     log_level = Enum((0,10,20,30,40,50,'DEBUG','INFO','WARN','ERROR','CRITICAL'),
                     default_value=logging.WARN,
-                    config=True,
-                    help="Set the log level by value or name.")
-    def _log_level_changed(self, name, old, new):
+                    help="Set the log level by value or name.").tag(config=True)
+
+    @observe('log_level')
+    @observe_compat
+    def _log_level_changed(self, change):
         """Adjust the log level when log_level is set."""
+        new = change['new']
         if isinstance(new, string_types):
             new = getattr(logging, new)
             self.log_level = new
@@ -163,23 +166,23 @@ class Application(SingletonConfigurable):
     
     _log_formatter_cls = LevelFormatter
     
-    log_datefmt = Unicode("%Y-%m-%d %H:%M:%S", config=True,
+    log_datefmt = Unicode("%Y-%m-%d %H:%M:%S", 
         help="The date format used by logging formatters for %(asctime)s"
-    )
-    def _log_datefmt_changed(self, name, old, new):
-        self._log_format_changed('log_format', self.log_format, self.log_format)
-    
-    log_format = Unicode("[%(name)s]%(highlevel)s %(message)s", config=True,
+    ).tag(config=True)
+
+    log_format = Unicode("[%(name)s]%(highlevel)s %(message)s",
         help="The Logging format template",
-    )
-    def _log_format_changed(self, name, old, new):
+    ).tag(config=True)
+
+    @observe('log_datefmt', 'log_format')
+    @observe_compat
+    def _log_format_changed(self, change):
         """Change the log formatter when log_format is set."""
         _log_handler = self.log.handlers[0]
-        _log_formatter = self._log_formatter_cls(fmt=new, datefmt=self.log_datefmt)
+        _log_formatter = self._log_formatter_cls(fmt=self.log_format, datefmt=self.log_datefmt)
         _log_handler.setFormatter(_log_formatter)
     
-
-    log = Instance(logging.Logger)
+    @default('log')
     def _log_default(self):
         """Start logging for this application.
 
@@ -217,12 +220,15 @@ class Application(SingletonConfigurable):
     # this must be a dict of two-tuples, the first element being the Config/dict
     # and the second being the help string for the flag
     flags = Dict()
-    def _flags_changed(self, name, old, new):
+    @observe('flags')
+    @observe_compat
+    def _flags_changed(self, change):
         """ensure flags dict is valid"""
-        for key,value in iteritems(new):
-            assert len(value) == 2, "Bad flag: %r:%s"%(key,value)
-            assert isinstance(value[0], (dict, Config)), "Bad flag: %r:%s"%(key,value)
-            assert isinstance(value[1], string_types), "Bad flag: %r:%s"%(key,value)
+        new = change['new']
+        for key, value in new.items():
+            assert len(value) == 2, "Bad flag: %r:%s" % (key, value)
+            assert isinstance(value[0], (dict, Config)), "Bad flag: %r:%s" % (key, value)
+            assert isinstance(value[1], string_types), "Bad flag: %r:%s" % (key, value)
 
 
     # subcommands for launching other applications
@@ -235,7 +241,7 @@ class Application(SingletonConfigurable):
     subapp = Instance('traitlets.config.application.Application', allow_none=True)
 
     # extra command-line arguments that don't set config values
-    extra_args = List(Unicode)
+    extra_args = List(Unicode())
 
 
     def __init__(self, **kwargs):
@@ -244,11 +250,13 @@ class Application(SingletonConfigurable):
         # options and config files.
         if self.__class__ not in self.classes:
             self.classes.insert(0, self.__class__)
-
-    def _config_changed(self, name, old, new):
-        SingletonConfigurable._config_changed(self, name, old, new)
+    
+    @observe('config')
+    @observe_compat
+    def _config_changed(self, change):
+        super(Application, self)._config_changed(change)
         self.log.debug('Config changed:')
-        self.log.debug(repr(new))
+        self.log.debug(repr(change['new']))
 
     @catch_config_error
     def initialize(self, argv=None):
@@ -399,16 +407,6 @@ class Application(SingletonConfigurable):
         """Print the version string."""
         print(self.version)
 
-    def update_config(self, config):
-        """Fire the traits events when the config is updated."""
-        # Save a copy of the current config.
-        newconfig = deepcopy(self.config)
-        # Merge the new config into the current one.
-        newconfig.merge(config)
-        # Save the combined config as self.config, which triggers the traits
-        # events.
-        self.config = newconfig
-
     @catch_config_error
     def initialize_subcommand(self, subc, argv=None):
         """Initialize a subcommand with argv."""
@@ -525,10 +523,8 @@ class Application(SingletonConfigurable):
             # path list is in descending priority order, so load files backwards:
             pyloader = cls.python_config_loader_class(basefilename+'.py', path=path, log=log)
             if log:
-                log.debug("Attempting to load config file %s.py in path %s", basefilename, path)
+                log.debug("Looking for %s in %s", basefilename, path)
             jsonloader = cls.json_config_loader_class(basefilename+'.json', path=path, log=log)
-            if log:
-                log.debug("Attempting to load config file %s.json in path %s", basefilename, path)
             config = None
             for loader in [pyloader, jsonloader]:
                 try:
@@ -579,6 +575,7 @@ class Application(SingletonConfigurable):
 
     def exit(self, exit_status=0):
         self.log.debug("Exiting application: %s" % self.name)
+        logging.shutdown()
         sys.exit(exit_status)
 
     @classmethod

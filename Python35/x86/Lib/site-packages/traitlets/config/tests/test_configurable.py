@@ -18,10 +18,11 @@ from traitlets.traitlets import (
 from traitlets.config.loader import Config
 from ipython_genutils.py3compat import PY3
 
+from ...tests._warnings import expected_warnings
 
 class MyConfigurable(Configurable):
-    a = Integer(1, config=True, help="The integer a.")
-    b = Float(1.0, config=True, help="The integer b.")
+    a = Integer(1, help="The integer a.").tag(config=True)
+    b = Float(1.0, help="The integer b.").tag(config=True)
     c = Unicode('no config')
 
 
@@ -49,13 +50,13 @@ if PY3:
     mc_help_inst = mc_help_inst.replace(u"<Integer>", u"<Int>")
 
 class Foo(Configurable):
-    a = Integer(0, config=True, help="The integer a.")
-    b = Unicode('nope', config=True)
+    a = Integer(0, help="The integer a.").tag(config=True)
+    b = Unicode('nope').tag(config=True)
 
 
 class Bar(Foo):
-    b = Unicode('gotit', config=False, help="The string b.")
-    c = Float(config=True, help="The string c.")
+    b = Unicode('gotit', help="The string b.").tag(config=False)
+    c = Float(help="The string c.").tag(config=True)
 
 
 class TestConfigurable(TestCase):
@@ -263,15 +264,15 @@ class TestParentConfigurable(TestCase):
         self.assertEqual(myc.b, parent.config.MyParent2.MyParent.MyConfigurable.b)
 
 class Containers(Configurable):
-    lis = List(config=True)
+    lis = List().tag(config=True)
     def _lis_default(self):
         return [-1]
     
-    s = Set(config=True)
+    s = Set().tag(config=True)
     def _s_default(self):
         return {'a'}
     
-    d = Dict(config=True)
+    d = Dict().tag(config=True)
     def _d_default(self):
         return {'a' : 'b'}
 
@@ -353,12 +354,22 @@ class TestConfigContainers(TestCase):
         m.update_config(c2)
         self.assertEqual(m.a, 15)
     
+    def test_update_self(self):
+        """update_config with same config object still triggers config_changed"""
+        c = Config()
+        c.MyConfigurable.a = 5
+        m = MyConfigurable(config=c)
+        self.assertEqual(m.a, 5)
+        c.MyConfigurable.a = 10
+        m.update_config(c)
+        self.assertEqual(m.a, 10)
+    
     def test_config_default(self):
         class SomeSingleton(SingletonConfigurable):
             pass
 
         class DefaultConfigurable(Configurable):
-            a = Integer(config=True)
+            a = Integer().tag(config=True)
             def _config_default(self):
                 if SomeSingleton.initialized():
                     return SomeSingleton.instance().config
@@ -376,3 +387,28 @@ class TestConfigContainers(TestCase):
         self.assertIs(d2.config, single.config)
         self.assertEqual(d2.a, 5)
 
+    def test_config_default_deprecated(self):
+        """Make sure configurables work even with the deprecations in traitlets"""
+        class SomeSingleton(SingletonConfigurable):
+            pass
+
+        with expected_warnings(['Metadata should be set using the \.tag\(\) method']):
+            class DefaultConfigurable(Configurable):
+                a = Integer(config=True)
+                def _config_default(self):
+                    if SomeSingleton.initialized():
+                        return SomeSingleton.instance().config
+                    return Config()
+
+        c = Config()
+        c.DefaultConfigurable.a = 5
+
+        d1 = DefaultConfigurable()
+        self.assertEqual(d1.a, 0)
+        
+        single = SomeSingleton.instance(config=c)
+        
+        d2 = DefaultConfigurable()
+        self.assertIs(d2.config, single.config)
+        self.assertEqual(d2.a, 5)
+        

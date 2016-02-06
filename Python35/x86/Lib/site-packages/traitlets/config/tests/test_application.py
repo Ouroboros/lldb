@@ -11,6 +11,11 @@ import os
 from io import StringIO
 from unittest import TestCase
 
+try:
+    from unittest import mock
+except ImportError:
+    import mock
+
 pjoin = os.path.join
 
 import nose.tools as nt
@@ -30,25 +35,26 @@ from traitlets.traitlets import (
 
 class Foo(Configurable):
 
-    i = Integer(0, config=True, help="The integer i.")
-    j = Integer(1, config=True, help="The integer j.")
-    name = Unicode(u'Brian', config=True, help="First name.")
+    i = Integer(0, help="The integer i.").tag(config=True)
+    j = Integer(1, help="The integer j.").tag(config=True)
+    name = Unicode(u'Brian', help="First name.").tag(config=True)
 
 
 class Bar(Configurable):
 
-    b = Integer(0, config=True, help="The integer b.")
-    enabled = Bool(True, config=True, help="Enable bar.")
+    b = Integer(0, help="The integer b.").tag(config=True)
+    enabled = Bool(True, help="Enable bar.").tag(config=True)
 
 
 class MyApp(Application):
 
     name = Unicode(u'myapp')
-    running = Bool(False, config=True,
-                   help="Is the app running?")
+    running = Bool(False, help="Is the app running?").tag(config=True)
     classes = List([Bar, Foo])
-    config_file = Unicode(u'', config=True,
-                   help="Load this config file")
+    config_file = Unicode(u'', help="Load this config file").tag(config=True)
+
+    warn_tpyo = Unicode(u"yes the name is wrong on purpose", config=True,
+            help="Should print a warning if `MyApp.warn-typo=...` command is passed")
 
     aliases = Dict({
                     'i' : 'Foo.i',
@@ -137,6 +143,19 @@ class TestApplication(TestCase):
         app.init_bar()
         self.assertEqual(app.bar.enabled, True)
         self.assertEqual(app.bar.b, 10)
+
+    def test_warn_autocorrect(self):
+        stream = StringIO()
+        app = MyApp(log_level=logging.INFO)
+        app.log.handlers = [logging.StreamHandler(stream)]
+
+        cfg = Config()
+        cfg.MyApp.warn_typo = "WOOOO"
+        app.config = cfg
+
+        nt.assert_in("warn_typo", stream.getvalue())
+        nt.assert_in("warn_tpyo", stream.getvalue())
+        
     
     def test_flatten_flags(self):
         cfg = Config()
@@ -179,6 +198,14 @@ class TestApplication(TestCase):
     def test_unicode_argv(self):
         app = MyApp()
         app.parse_command_line(['ünîcødé'])
+
+    def test_document_config_option(self):
+        app = MyApp()
+        app.document_config_options()
+
+    def test_generate_config_file(self):
+        app = MyApp()
+        assert 'The integer b.' in app.generate_config_file()
     
     def test_multi_file(self):
         app = MyApp()
@@ -197,3 +224,22 @@ class TestApplication(TestCase):
                 app.init_bar()
                 self.assertEqual(app.bar.b, 1)
 
+
+class DeprecatedApp(Application):
+    override_called = False
+    parent_called = False
+    def _config_changed(self, name, old, new):
+        self.override_called = True
+        def _capture(*args):
+            self.parent_called = True
+        with mock.patch.object(self.log, 'debug', _capture):
+            super(DeprecatedApp, self)._config_changed(name, old, new)
+
+def test_deprecated_notifier():
+    app = DeprecatedApp()
+    nt.assert_false(app.override_called)
+    nt.assert_false(app.parent_called)
+    app.config = Config({'A': {'b': 'c'}})
+    nt.assert_true(app.override_called)
+    nt.assert_true(app.parent_called)
+    

@@ -6,11 +6,10 @@
 
 from __future__ import print_function
 
-import logging
 from copy import deepcopy
 
 from .loader import Config, LazyConfigValue
-from traitlets.traitlets import HasTraits, Instance
+from traitlets.traitlets import HasTraits, Instance, observe, observe_compat, default
 from ipython_genutils.text import indent, dedent, wrap_paragraphs
 from ipython_genutils.py3compat import iteritems
 
@@ -152,9 +151,20 @@ class Configurable(HasTraits):
                     # config object. If we don't, a mutable config_value will be
                     # shared by all instances, effectively making it a class attribute.
                     setattr(self, name, deepcopy(config_value))
+                elif isinstance(self, LoggingConfigurable):
+                    from difflib import get_close_matches
+                    matches = get_close_matches(name, traits)
+                    if len(matches) == 1:
+                        self.log.warning(u"Config option `{option}` not recognized by `{klass}`, do you mean : `{matches}`"
+                                .format(option=name, klass=type(self).__name__, matches=matches[0]))
+                    elif len(matches) >= 1:
+                        self.log.warning(u"Config option `{option}` not recognized by `{klass}`, do you mean one of : `{matches}`"
+                                .format(option=name, klass=type(self).__name__, matches=' ,'.join(matches)))
 
-    def _config_changed(self, name, old, new):
-        """Update all the class traits having ``config=True`` as metadata.
+    @observe('config')
+    @observe_compat
+    def _config_changed(self, change):
+        """Update all the class traits having ``config=True`` in metadata.
 
         For any class trait with a ``config`` metadata attribute that is
         ``True``, we update the trait with the value of the corresponding
@@ -167,22 +177,27 @@ class Configurable(HasTraits):
         # classes that are Configurable subclasses.  This starts with Configurable
         # and works down the mro loading the config for each section.
         section_names = self.section_names()
-        self._load_config(new, traits=traits, section_names=section_names)
+        self._load_config(change['new'], traits=traits, section_names=section_names)
 
     def update_config(self, config):
-        """Fire the traits events when the config is updated."""
-        # Save a copy of the current config.
-        newconfig = deepcopy(self.config)
-        # Merge the new config into the current one.
-        newconfig.merge(config)
-        # Save the combined config as self.config, which triggers the traits
-        # events.
-        self.config = newconfig
+        """Update config and trigger reload of config via trait events"""
+        # Save a copy of the old config
+        oldconfig = deepcopy(self.config)
+        # merge new config
+        self.config.merge(config)
+        # unconditionally notify trait change, which triggers load of new config
+        self.notify_change({
+            'name': 'config',
+            'old': oldconfig,
+            'new': self.config,
+            'owner': self,
+            'type': 'change',
+        })
 
     @classmethod
     def class_get_help(cls, inst=None):
         """Get the help string for this class in ReST format.
-        
+
         If `inst` is given, it's current trait values will be used in place of
         class defaults.
         """
@@ -210,7 +225,7 @@ class Configurable(HasTraits):
             lines.append(indent('Current: %r' % getattr(inst, trait.name), 4))
         else:
             try:
-                dvr = repr(trait.default_value)
+                dvr = trait.default_value_repr()
             except Exception:
                 dvr = None # ignore defaults we can't construct
             if dvr is not None:
@@ -221,8 +236,8 @@ class Configurable(HasTraits):
             # include Enum choices
             lines.append(indent('Choices: %r' % (trait.values,)))
 
-        help = trait.get_metadata('help')
-        if help is not None:
+        help = trait.help
+        if help != '':
             help = '\n'.join(wrap_paragraphs(help, 76))
             lines.append(indent(help, 4))
         return '\n'.join(lines)
@@ -256,10 +271,9 @@ class Configurable(HasTraits):
             lines.append(c(desc))
             lines.append('')
 
-        for name, trait in iteritems(cls.class_own_traits(config=True)):
-            help = trait.get_metadata('help') or ''
-            lines.append(c(help))
-            lines.append('# c.%s.%s = %r'%(cls.__name__, name, trait.default_value))
+        for name, trait in sorted(cls.class_own_traits(config=True).items()):
+            lines.append(c(trait.help))
+            lines.append('# c.%s.%s = %s' % (cls.__name__, name, trait.default_value_repr()))
             lines.append('')
         return '\n'.join(lines)
 
@@ -286,11 +300,10 @@ class Configurable(HasTraits):
 
             # Default value
             try:
-                dv = trait.default_value
-                dvr = repr(dv)
+                dvr = trait.default_value_repr()
             except Exception:
-                dvr = dv = None # ignore defaults we can't construct
-            if (dv is not None) and (dvr is not None):
+                dvr = None # ignore defaults we can't construct
+            if dvr is not None:
                 if len(dvr) > 64:
                     dvr = dvr[:61]+'...'
                 # Double up backslashes, so they get to the rendered docs
@@ -298,11 +311,8 @@ class Configurable(HasTraits):
                 lines.append('    Default: ``%s``' % dvr)
                 lines.append('')
 
-            help = trait.get_metadata('help')
-            if help is not None:
-                lines.append(indent(dedent(help), 4))
-            else:
-                lines.append('    No description')
+            help = trait.help or 'No description'
+            lines.append(indent(dedent(help), 4))
 
             # Blank line
             lines.append('')
@@ -311,7 +321,21 @@ class Configurable(HasTraits):
 
 
 
-class SingletonConfigurable(Configurable):
+class LoggingConfigurable(Configurable):
+    """A parent class for Configurables that log.
+
+    Subclasses have a log trait, and the default behavior
+    is to get the logger from the currently running Application.
+    """
+
+    log = Instance('logging.Logger')
+    @default('log')
+    def _log_default(self):
+        from traitlets import log
+        return log.get_logger()
+
+
+class SingletonConfigurable(LoggingConfigurable):
     """A configurable that only allows one instance.
 
     This class is for classes that should only have one instance of itself
@@ -396,17 +420,5 @@ class SingletonConfigurable(Configurable):
         """Has an instance been created?"""
         return hasattr(cls, "_instance") and cls._instance is not None
 
-
-class LoggingConfigurable(Configurable):
-    """A parent class for Configurables that log.
-
-    Subclasses have a log trait, and the default behavior
-    is to get the logger from the currently running Application.
-    """
-
-    log = Instance('logging.Logger')
-    def _log_default(self):
-        from traitlets import log
-        return log.get_logger()
 
 

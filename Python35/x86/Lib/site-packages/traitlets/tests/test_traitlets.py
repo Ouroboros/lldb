@@ -1,5 +1,5 @@
 # encoding: utf-8
-"""Tests for ipython_genutils.traitlets."""
+"""Tests for traitlets.traitlets."""
 
 # Copyright (c) IPython Development Team.
 # Distributed under the terms of the Modified BSD License.
@@ -11,6 +11,7 @@ import pickle
 import re
 import sys
 from unittest import TestCase
+from ._warnings import expected_warnings
 
 import nose.tools as nt
 from nose import SkipTest
@@ -18,12 +19,17 @@ from nose import SkipTest
 from traitlets import (
     HasTraits, MetaHasTraits, TraitType, Any, Bool, CBytes, Dict, Enum,
     Int, Long, Integer, Float, Complex, Bytes, Unicode, TraitError,
-    Union, Undefined, Type, This, Instance, TCPAddress, List, Tuple,
+    Union, All, Undefined, Type, This, Instance, TCPAddress, List, Tuple,
     ObjectName, DottedObjectName, CRegExp, link, directional_link,
-    ForwardDeclaredType, ForwardDeclaredInstance,
+    ForwardDeclaredType, ForwardDeclaredInstance, validate, observe, default,
+    observe_compat,
 )
 from ipython_genutils import py3compat
 from ipython_genutils.testing.decorators import skipif
+
+def change_dict(*ordered_values):
+    change_names = ('name', 'old', 'new', 'owner', 'type')
+    return dict(zip(change_names, ordered_values))
 
 #-----------------------------------------------------------------------------
 # Helper classes for testing
@@ -32,10 +38,11 @@ from ipython_genutils.testing.decorators import skipif
 
 class HasTraitsStub(HasTraits):
 
-    def _notify_trait(self, name, old, new):
-        self._notify_name = name
-        self._notify_old = old
-        self._notify_new = new
+    def notify_change(self, change):
+        self._notify_name = change['name']
+        self._notify_old = change['old']
+        self._notify_new = change['new']
+        self._notify_type = change['type']
 
 
 #-----------------------------------------------------------------------------
@@ -102,7 +109,7 @@ class TestTraitType(TestCase):
         a = A()
         self.assertRaises(TraitError, A.tt.error, a, 10)
 
-    def test_dynamic_initializer(self):
+    def test_deprecated_dynamic_initializer(self):
         class A(HasTraits):
             x = Int(10)
             def _x_default(self):
@@ -132,15 +139,98 @@ class TestTraitType(TestCase):
         self.assertEqual(a.x, 11)
         self.assertEqual(a._trait_values, {'x': 11})
 
+    def test_dynamic_initializer(self):
 
+        class A(HasTraits):
+            x = Int(10)
 
-class TestHasTraitsMeta(TestCase):
+            @default('x')
+            def _default_x(self):
+                return 11
+
+        class B(A):
+            x = Int(20)
+
+        class C(A):
+
+            @default('x')
+            def _default_x(self):
+                return 21
+
+        a = A()
+        self.assertEqual(a._trait_values, {})
+        self.assertEqual(a.x, 11)
+        self.assertEqual(a._trait_values, {'x': 11})
+        b = B()
+        self.assertEqual(b.x, 20)
+        self.assertEqual(b._trait_values, {'x': 20})
+        c = C()
+        self.assertEqual(c._trait_values, {})
+        self.assertEqual(c.x, 21)
+        self.assertEqual(c._trait_values, {'x': 21})
+        # Ensure that the base class remains unmolested when the _default
+        # initializer gets overridden in a subclass.
+        a = A()
+        c = C()
+        self.assertEqual(a._trait_values, {})
+        self.assertEqual(a.x, 11)
+        self.assertEqual(a._trait_values, {'x': 11})
+
+    def test_tag_metadata(self):
+        class MyIntTT(TraitType):
+            metadata = {'a': 1, 'b': 2}
+        a = MyIntTT(10).tag(b=3, c=4)
+        self.assertEqual(a.metadata, {'a': 1, 'b': 3, 'c': 4})
+
+    def test_metadata_localized_instance(self):
+        class MyIntTT(TraitType):
+            metadata = {'a': 1, 'b': 2}
+        a = MyIntTT(10)
+        b = MyIntTT(10)
+        a.metadata['c'] = 3
+        # make sure that changing a's metadata didn't change b's metadata
+        self.assertNotIn('c', b.metadata)
+
+    def test_deprecated_metadata_access(self):
+        class MyIntTT(TraitType):
+            metadata = {'a': 1, 'b': 2}
+        a = MyIntTT(10)
+        with expected_warnings(["use the instance .metadata dictionary directly"]*2):
+            a.set_metadata('key', 'value')
+            v = a.get_metadata('key')
+        self.assertEqual(v, 'value')
+        with expected_warnings(["use the instance .help string directly"]*2):
+            a.set_metadata('help', 'some help')
+            v = a.get_metadata('help')
+        self.assertEqual(v, 'some help')
+
+    def test_trait_types_deprecated(self):
+        with expected_warnings(["Traits should be given as instances"]):
+            class C(HasTraits):
+                t = Int
+
+    def test_trait_types_list_deprecated(self):
+        with expected_warnings(["Traits should be given as instances"]):
+            class C(HasTraits):
+                t = List(Int)
+
+    def test_trait_types_tuple_deprecated(self):
+        with expected_warnings(["Traits should be given as instances"]):
+            class C(HasTraits):
+                t = Tuple(Int)
+
+    def test_trait_types_dict_deprecated(self):
+        with expected_warnings(["Traits should be given as instances"]):
+            class C(HasTraits):
+                t = Dict(Int)
+
+class TestHasDescriptorsMeta(TestCase):
 
     def test_metaclass(self):
         self.assertEqual(type(HasTraits), MetaHasTraits)
 
         class A(HasTraits):
-            a = Int
+            a = Int()
 
         a = A()
         self.assertEqual(type(a.__class__), MetaHasTraits)
@@ -191,8 +281,8 @@ class TestHasTraitsNotify(TestCase):
     def test_notify_all(self):
 
         class A(HasTraits):
-            a = Int
-            b = Float
+            a = Int()
+            b = Float()
 
         a = A()
         a.on_trait_change(self.notify1)
@@ -215,8 +305,8 @@ class TestHasTraitsNotify(TestCase):
     def test_notify_one(self):
 
         class A(HasTraits):
-            a = Int
-            b = Float
+            a = Int()
+            b = Float()
 
         a = A()
         a.on_trait_change(self.notify1, 'a')
@@ -229,10 +319,10 @@ class TestHasTraitsNotify(TestCase):
     def test_subclass(self):
 
         class A(HasTraits):
-            a = Int
+            a = Int()
 
         class B(A):
-            b = Float
+            b = Float()
 
         b = B()
         self.assertEqual(b.a,0)
@@ -245,10 +335,10 @@ class TestHasTraitsNotify(TestCase):
     def test_notify_subclass(self):
 
         class A(HasTraits):
-            a = Int
+            a = Int()
 
         class B(A):
-            b = Float
+            b = Float()
 
         b = B()
         b.on_trait_change(self.notify1, 'a')
@@ -265,7 +355,7 @@ class TestHasTraitsNotify(TestCase):
     def test_static_notify(self):
 
         class A(HasTraits):
-            a = Int
+            a = Int()
             _notify1 = []
             def _a_changed(self, name, old, new):
                 self._notify1.append((name, old, new))
@@ -278,7 +368,7 @@ class TestHasTraitsNotify(TestCase):
         self.assertTrue(('a',0,10) in a._notify1)
 
         class B(A):
-            b = Float
+            b = Float()
             _notify2 = []
             def _b_changed(self, name, old, new):
                 self._notify2.append((name, old, new))
@@ -299,9 +389,11 @@ class TestHasTraitsNotify(TestCase):
             self.cb = (name, new)
         def callback3(name, old, new):
             self.cb = (name, old, new)
+        def callback4(name, old, new, obj):
+            self.cb = (name, old, new, obj)
 
         class A(HasTraits):
-            a = Int
+            a = Int()
 
         a = A()
         a.on_trait_change(callback0, 'a')
@@ -324,7 +416,13 @@ class TestHasTraitsNotify(TestCase):
         self.assertEqual(self.cb,('a',1000,10000))
         a.on_trait_change(callback3, 'a', remove=True)
 
-        self.assertEqual(len(a._trait_notifiers['a']),0)
+        a.on_trait_change(callback4, 'a')
+        a.a = 100000
+        self.assertEqual(self.cb,('a',10000,100000,a))
+        self.assertEqual(len(a._trait_notifiers['a']['change']), 1)
+        a.on_trait_change(callback4, 'a', remove=True)
+
+        self.assertEqual(len(a._trait_notifiers['a']['change']), 0)
 
     def test_notify_only_once(self):
 
@@ -364,22 +462,226 @@ class TestHasTraitsNotify(TestCase):
         self.assertEqual(b.b, b.c)
         self.assertEqual(b.b, b.d)
 
+class TestObserveDecorator(TestCase):
+
+    def setUp(self):
+        self._notify1 = []
+        self._notify2 = []
+
+    def notify1(self, change):
+        self._notify1.append(change)
+
+    def notify2(self, change):
+        self._notify2.append(change)
+
+    def test_notify_all(self):
+
+        class A(HasTraits):
+            a = Int()
+            b = Float()
+
+        a = A()
+        a.observe(self.notify1)
+        a.a = 0
+        self.assertEqual(len(self._notify1),0)
+        a.b = 0.0
+        self.assertEqual(len(self._notify1),0)
+        a.a = 10
+        change = change_dict('a', 0, 10, a, 'change')
+        self.assertTrue(change in self._notify1)
+        a.b = 10.0
+        change = change_dict('b', 0.0, 10.0, a, 'change')
+        self.assertTrue(change in self._notify1)
+        self.assertRaises(TraitError,setattr,a,'a','bad string')
+        self.assertRaises(TraitError,setattr,a,'b','bad string')
+        self._notify1 = []
+        a.unobserve(self.notify1)
+        a.a = 20
+        a.b = 20.0
+        self.assertEqual(len(self._notify1),0)
+
+    def test_notify_one(self):
+
+        class A(HasTraits):
+            a = Int()
+            b = Float()
+
+        a = A()
+        a.observe(self.notify1, 'a')
+        a.a = 0
+        self.assertEqual(len(self._notify1),0)
+        a.a = 10
+        change = change_dict('a', 0, 10, a, 'change')
+        self.assertTrue(change in self._notify1)
+        self.assertRaises(TraitError,setattr,a,'a','bad string')
+
+    def test_subclass(self):
+
+        class A(HasTraits):
+            a = Int()
+
+        class B(A):
+            b = Float()
+
+        b = B()
+        self.assertEqual(b.a,0)
+        self.assertEqual(b.b,0.0)
+        b.a = 100
+        b.b = 100.0
+        self.assertEqual(b.a,100)
+        self.assertEqual(b.b,100.0)
+
+    def test_notify_subclass(self):
+
+        class A(HasTraits):
+            a = Int()
+
+        class B(A):
+            b = Float()
+
+        b = B()
+        b.observe(self.notify1, 'a')
+        b.observe(self.notify2, 'b')
+        b.a = 0
+        b.b = 0.0
+        self.assertEqual(len(self._notify1),0)
+        self.assertEqual(len(self._notify2),0)
+        b.a = 10
+        b.b = 10.0
+        change = change_dict('a', 0, 10, b, 'change')
+        self.assertTrue(change in self._notify1)
+        change = change_dict('b', 0.0, 10.0, b, 'change')
+        self.assertTrue(change in self._notify2)
+
+    def test_static_notify(self):
+
+        class A(HasTraits):
+            a = Int()
+            b = Int()
+            _notify1 = []
+            _notify_any = []
+            
+            @observe('a')
+            def _a_changed(self, change):
+                self._notify1.append(change)
+
+            @observe(All)
+            def _any_changed(self, change):
+                self._notify_any.append(change)
+
+        a = A()
+        a.a = 0
+        self.assertEqual(len(a._notify1),0)
+        a.a = 10
+        change = change_dict('a', 0, 10, a, 'change')
+        self.assertTrue(change in a._notify1)
+        a.b = 1
+        self.assertEqual(len(a._notify_any), 2)
+        change = change_dict('b', 0, 1, a, 'change')
+        self.assertTrue(change in a._notify_any)
+
+        class B(A):
+            b = Float()
+            _notify2 = []
+            @observe('b')
+            def _b_changed(self, change):
+                self._notify2.append(change)
+
+        b = B()
+        b.a = 10
+        b.b = 10.0
+        change = change_dict('a', 0, 10, b, 'change')
+        self.assertTrue(change in b._notify1)
+        change = change_dict('b', 0.0, 10.0, b, 'change')
+        self.assertTrue(change in b._notify2)
+
+    def test_notify_args(self):
+
+        def callback0():
+            self.cb = ()
+        def callback1(change):
+            self.cb = change
+
+        class A(HasTraits):
+            a = Int()
+
+        a = A()
+        a.on_trait_change(callback0, 'a')
+        a.a = 10
+        self.assertEqual(self.cb,())
+        a.unobserve(callback0, 'a')
+
+        a.observe(callback1, 'a')
+        a.a = 100
+        change = change_dict('a', 10, 100, a, 'change')
+        self.assertEqual(self.cb, change)
+        self.assertEqual(len(a._trait_notifiers['a']['change']), 1)
+        a.unobserve(callback1, 'a')
+
+        self.assertEqual(len(a._trait_notifiers['a']['change']), 0)
+
+    def test_notify_only_once(self):
+
+        class A(HasTraits):
+            listen_to = ['a']
+            
+            a = Int(0)
+            b = 0
+            
+            def __init__(self, **kwargs):
+                super(A, self).__init__(**kwargs)
+                self.observe(self.listener1, ['a'])
+            
+            def listener1(self, change):
+                self.b += 1
+
+        class B(A):
+                    
+            c = 0
+            d = 0
+            
+            def __init__(self, **kwargs):
+                super(B, self).__init__(**kwargs)
+                self.observe(self.listener2)
+            
+            def listener2(self, change):
+                self.c += 1
+            
+            @observe('a')
+            def _a_changed(self, change):
+                self.d += 1
+
+        b = B()
+        b.a += 1
+        self.assertEqual(b.b, b.c)
+        self.assertEqual(b.b, b.d)
+        b.a += 1
+        self.assertEqual(b.b, b.c)
+        self.assertEqual(b.b, b.d)
+
 
 class TestHasTraits(TestCase):
 
     def test_trait_names(self):
         class A(HasTraits):
-            i = Int
-            f = Float
+            i = Int()
+            f = Float()
         a = A()
         self.assertEqual(sorted(a.trait_names()),['f','i'])
         self.assertEqual(sorted(A.class_trait_names()),['f','i'])
         self.assertTrue(a.has_trait('f'))
         self.assertFalse(a.has_trait('g'))
 
+    def test_trait_metadata_deprecated(self):
+        with expected_warnings(['Metadata should be set using the \.tag\(\) method']):
+            class A(HasTraits):
+                i = Int(config_key='MY_VALUE')
+        a = A()
+        self.assertEqual(a.trait_metadata('i','config_key'), 'MY_VALUE')
+
     def test_trait_metadata(self):
         class A(HasTraits):
-            i = Int(config_key='MY_VALUE')
+            i = Int().tag(config_key='MY_VALUE')
         a = A()
         self.assertEqual(a.trait_metadata('i','config_key'), 'MY_VALUE')
 
@@ -392,16 +694,16 @@ class TestHasTraits(TestCase):
 
     def test_traits(self):
         class A(HasTraits):
-            i = Int
-            f = Float
+            i = Int()
+            f = Float()
         a = A()
         self.assertEqual(a.traits(), dict(i=A.i, f=A.f))
         self.assertEqual(A.class_traits(), dict(i=A.i, f=A.f))
 
     def test_traits_metadata(self):
         class A(HasTraits):
-            i = Int(config_key='VALUE1', other_thing='VALUE2')
-            f = Float(config_key='VALUE3', other_thing='VALUE2')
+            i = Int().tag(config_key='VALUE1', other_thing='VALUE2')
+            f = Float().tag(config_key='VALUE3', other_thing='VALUE2')
             j = Int(0)
         a = A()
         self.assertEqual(a.traits(), dict(i=A.i, f=A.f, j=A.j))
@@ -412,6 +714,23 @@ class TestHasTraits(TestCase):
         # traits.
         traits = a.traits(config_key=lambda v: True)
         self.assertEqual(traits, dict(i=A.i, f=A.f, j=A.j))
+
+    def test_traits_metadata_deprecated(self):
+        with expected_warnings(['Metadata should be set using the \.tag\(\) method']*2):
+            class A(HasTraits):
+                i = Int(config_key='VALUE1', other_thing='VALUE2')
+                f = Float(config_key='VALUE3', other_thing='VALUE2')
+                j = Int(0)
+        a = A()
+        self.assertEqual(a.traits(), dict(i=A.i, f=A.f, j=A.j))
+        traits = a.traits(config_key='VALUE1', other_thing='VALUE2')
+        self.assertEqual(traits, dict(i=A.i))
+
+        # This passes, but it shouldn't because I am replicating a bug in
+        # traits.
+        traits = a.traits(config_key=lambda v: True)
+        self.assertEqual(traits, dict(i=A.i, f=A.f, j=A.j))
+
 
     def test_init(self):
         class A(HasTraits):
@@ -658,7 +977,7 @@ class TestThis(TestCase):
 
     def test_this_class(self):
         class Foo(HasTraits):
-            this = This
+            this = This()
 
         f = Foo()
         self.assertEqual(f.this, None)
@@ -764,7 +1083,7 @@ class TraitTestBase(TestCase):
 
 class AnyTrait(HasTraits):
 
-    value = Any
+    value = Any()
 
 class AnyTraitTest(TraitTestBase):
 
@@ -967,7 +1286,7 @@ class TestTCPAddress(TraitTestBase):
 
 class ListTrait(HasTraits):
 
-    value = List(Int)
+    value = List(Int())
 
 class TestList(TraitTestBase):
 
@@ -1029,7 +1348,7 @@ class TestUnionListTrait(HasTraits):
 
 class LenListTrait(HasTraits):
 
-    value = List(Int, [0], minlen=1, maxlen=2)
+    value = List(Int(), [0], minlen=1, maxlen=2)
 
 class TestLenList(TraitTestBase):
 
@@ -1064,7 +1383,7 @@ class TestTupleTrait(TraitTestBase):
     def test_invalid_args(self):
         self.assertRaises(TypeError, Tuple, 5)
         self.assertRaises(TypeError, Tuple, default_value='hello')
-        t = Tuple(Int, CBytes, default_value=(1,5))
+        t = Tuple(Int(), CBytes(), default_value=(1,5))
 
 class LooseTupleTrait(HasTraits):
 
@@ -1086,12 +1405,12 @@ class TestLooseTupleTrait(TraitTestBase):
     def test_invalid_args(self):
         self.assertRaises(TypeError, Tuple, 5)
         self.assertRaises(TypeError, Tuple, default_value='hello')
-        t = Tuple(Int, CBytes, default_value=(1,5))
+        t = Tuple(Int(), CBytes(), default_value=(1,5))
 
 
 class MultiTupleTrait(HasTraits):
 
-    value = Tuple(Int, Bytes, default_value=[99,b'bottles'])
+    value = Tuple(Int(), Bytes(), default_value=[99,b'bottles'])
 
 class TestMultiTuple(TraitTestBase):
 
@@ -1166,7 +1485,9 @@ class TestValidationHook(TestCase):
             value = Int(0)
             parity = Enum(['odd', 'even'], default_value='even')
 
-            def _value_validate(self, value, trait):
+            @validate('value')
+            def _value_validate(self, proposal):
+                value = proposal['value']
                 if self.parity == 'even' and value % 2:
                     raise TraitError('Expected an even number')
                 if self.parity == 'odd' and (value % 2 == 0):
@@ -1181,6 +1502,31 @@ class TestValidationHook(TestCase):
 
         u.parity = 'even'
         u.value = 2  # OK
+
+    def test_multiple_validate(self):
+        """Verify that we can register the same validator to multiple names"""
+
+        class OddEven(HasTraits):
+
+            odd = Int(1)
+            even = Int(0)
+
+            @validate('odd', 'even')
+            def check_valid(self, proposal):
+                if proposal['trait'].name == 'odd' and not proposal['value'] % 2:
+                    raise TraitError('odd should be odd')
+                if proposal['trait'].name == 'even' and proposal['value'] % 2:
+                    raise TraitError('even should be even')
+
+        u = OddEven()
+        u.odd = 3  # OK
+        with self.assertRaises(TraitError):
+            u.odd = 2  # Trait Error
+
+        u.even = 2  # OK
+        with self.assertRaises(TraitError):
+            u.even = 3  # Trait Error
+
 
 
 class TestLink(TestCase):
@@ -1307,6 +1653,28 @@ class TestDirectionalLink(TestCase):
         b.value = 6
         self.assertEqual(a.value, 5)
 
+    def test_tranform(self):
+        """Test transform link."""
+
+        # Create two simple classes with Int traitlets.
+        class A(HasTraits):
+            value = Int()
+        a = A(value=9)
+        b = A(value=8)
+
+        # Conenct the two classes.
+        c = directional_link((a, 'value'), (b, 'value'), lambda x: 2 * x)
+
+        # Make sure the values are correct at the point of linking.
+        self.assertEqual(b.value, 2 * a.value)
+
+        # Change one the value of the source and check that it modifies the target.
+        a.value = 5
+        self.assertEqual(b.value, 10)
+        # Change one the value of the target and check that it has no impact on the source
+        b.value = 6
+        self.assertEqual(a.value, 5)
+
     def test_link_different(self):
         """Verify two traitlets of different types can be linked together using link."""
 
@@ -1350,14 +1718,20 @@ class TestDirectionalLink(TestCase):
         self.assertNotEqual(a.value, b.value)
 
 class Pickleable(HasTraits):
+
     i = Int()
+    @observe('i')
+    def _i_changed(self, change): pass
+    @validate('i')
+    def _i_validate(self, commit):
+        return commit['value']
+
     j = Int()
     
-    def _i_default(self):
-        return 1
-    
-    def _i_changed(self, name, old, new):
-        self.j = new
+    def __init__(self):
+        with self.hold_trait_notifications():
+            self.i = 1
+        self.on_trait_change(self._i_changed, 'i')
 
 def test_pickle_hastraits():
     c = Pickleable()
@@ -1668,3 +2042,124 @@ def test_enum_no_default():
 
     c = C(t='b')
     assert c.t == 'b'
+
+
+def test_default_value_repr():
+    class C(HasTraits):
+        t = Type('traitlets.HasTraits')
+        t2 = Type(HasTraits)
+        n = Integer(0)
+        lis = List()
+        d = Dict()
+    
+    nt.assert_equal(C.t.default_value_repr(), "'traitlets.HasTraits'")
+    nt.assert_equal(C.t2.default_value_repr(), "'traitlets.traitlets.HasTraits'")
+    nt.assert_equal(C.n.default_value_repr(), '0')
+    nt.assert_equal(C.lis.default_value_repr(), '[]')
+    nt.assert_equal(C.d.default_value_repr(), '{}')
+
+
+class TransitionalClass(HasTraits):
+    
+    d = Any()
+    @default('d')
+    def _d_default(self):
+        return TransitionalClass
+
+    parent_super = False
+    calls_super = Integer(0)
+    
+    @default('calls_super')
+    def _calls_super_default(self):
+        return -1
+    
+    @observe('calls_super')
+    @observe_compat
+    def _calls_super_changed(self, change):
+        self.parent_super = change
+    
+    parent_override = False
+    overrides = Integer(0)
+    
+    @observe('overrides')
+    @observe_compat
+    def _overrides_changed(self, change):
+        self.parent_override = change
+
+
+class SubClass(TransitionalClass):
+    def _d_default(self):
+        return SubClass
+    
+    subclass_super = False
+    def _calls_super_changed(self, name, old, new):
+        self.subclass_super = True
+        super(SubClass, self)._calls_super_changed(name, old, new)
+    
+    subclass_override = False
+    def _overrides_changed(self, name, old, new):
+        self.subclass_override = True
+
+
+def test_subclass_compat():
+    obj = SubClass()
+    obj.calls_super = 5
+    nt.assert_true(obj.parent_super)
+    nt.assert_true(obj.subclass_super)
+    obj.overrides = 5
+    nt.assert_true(obj.subclass_override)
+    nt.assert_false(obj.parent_override)
+    nt.assert_is(obj.d, SubClass)
+
+
+class DefinesHandler(HasTraits):
+    parent_called = False
+    
+    trait = Integer()
+    @observe('trait')
+    def handler(self, change):
+        self.parent_called = True
+
+
+class OverridesHandler(DefinesHandler):
+    child_called = False
+    
+    @observe('trait')
+    def handler(self, change):
+        self.child_called = True
+
+
+def test_subclass_override_observer():
+    obj = OverridesHandler()
+    obj.trait = 5
+    nt.assert_true(obj.child_called)
+    nt.assert_false(obj.parent_called)
+
+
+class DoesntRegisterHandler(DefinesHandler):
+    child_called = False
+    
+    def handler(self, change):
+        self.child_called = True
+
+
+def test_subclass_override_not_registered():
+    """Subclass that overrides observer and doesn't re-register unregisters both"""
+    obj = DoesntRegisterHandler()
+    obj.trait = 5
+    nt.assert_false(obj.child_called)
+    nt.assert_false(obj.parent_called)
+
+
+class AddsHandler(DefinesHandler):
+    child_called = False
+    
+    @observe('trait')
+    def child_handler(self, change):
+        self.child_called = True
+
+def test_subclass_add_observer():
+    obj = AddsHandler()
+    obj.trait = 5
+    nt.assert_true(obj.child_called)
+    nt.assert_true(obj.parent_called)

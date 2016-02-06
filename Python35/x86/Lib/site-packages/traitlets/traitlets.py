@@ -45,13 +45,12 @@ import inspect
 import re
 import sys
 import types
-from types import FunctionType
 try:
     from types import ClassType, InstanceType
     ClassTypes = (ClassType, type)
 except:
     ClassTypes = (type,)
-from warnings import warn
+from warnings import warn, warn_explicit
 
 from ipython_genutils import py3compat
 from ipython_genutils.py3compat import iteritems, string_types
@@ -59,6 +58,7 @@ from ipython_genutils.py3compat import iteritems, string_types
 from .utils.getargspec import getargspec
 from .utils.importstring import import_item
 from .utils.sentinel import Sentinel
+
 SequenceTypes = (list, tuple, set, frozenset)
 
 #-----------------------------------------------------------------------------
@@ -69,6 +69,13 @@ SequenceTypes = (list, tuple, set, frozenset)
 Undefined = Sentinel('Undefined', 'traitlets',
 '''
 Used in Traitlets to specify that no defaults are set in kwargs
+'''
+)
+
+All = Sentinel('All', 'traitlets',
+'''
+Used in Traitlets to listen to all types of notification or to notifications
+from all trait attributes.
 '''
 )
 
@@ -83,7 +90,30 @@ class TraitError(Exception):
 #-----------------------------------------------------------------------------
 
 
-def class_of ( object ):
+def _deprecated_method(method, cls, method_name, msg):
+    """Show deprecation warning about a magic method definition.
+
+    Uses warn_explicit to bind warning to method definition instead of triggering code,
+    which isn't relevant.
+    """
+    warn_msg = "{classname}.{method_name} is deprecated: {msg}".format(
+        classname=cls.__name__, method_name=method_name, msg=msg
+    )
+
+    for parent in inspect.getmro(cls):
+        if method_name in parent.__dict__:
+            cls = parent
+            break
+    try:
+        fname = inspect.getsourcefile(method) or "<unknown>"
+        lineno = inspect.getsourcelines(method)[1] or 0
+    except TypeError as e:
+        # Failed to inspect for some reason
+        warn(warn_msg + ('\n(inspection failed) %s' % e), DeprecationWarning)
+    else:
+        warn_explicit(warn_msg, DeprecationWarning, fname, lineno)
+
+def class_of(object):
     """ Returns a string containing the class name of an object with the
     correct indefinite article ('a' or 'an') preceding it (e.g., 'an Image',
     'a PlotValue').
@@ -94,7 +124,7 @@ def class_of ( object ):
     return add_article( object.__class__.__name__ )
 
 
-def add_article ( name ):
+def add_article(name):
     """ Returns a string containing the correct indefinite article ('a' or 'an')
     prefixed to the specified string.
     """
@@ -123,27 +153,29 @@ def is_trait(t):
             (isinstance(t, type) and issubclass(t, TraitType)))
 
 
-def parse_notifier_name(name):
+def parse_notifier_name(names):
     """Convert the name argument to a list of names.
 
     Examples
     --------
 
+    >>> parse_notifier_name([])
+    [All]
     >>> parse_notifier_name('a')
     ['a']
-    >>> parse_notifier_name(['a','b'])
+    >>> parse_notifier_name(['a', 'b'])
     ['a', 'b']
-    >>> parse_notifier_name(None)
-    ['anytrait']
+    >>> parse_notifier_name(All)
+    [All]
     """
-    if isinstance(name, string_types):
-        return [name]
-    elif name is None:
-        return ['anytrait']
-    elif isinstance(name, (list, tuple)):
-        for n in name:
+    if names is All or isinstance(names, string_types):
+        return [names]
+    elif isinstance(names, (list, tuple)):
+        if not names or All in names:
+            return [All]
+        for n in names:
             assert isinstance(n, string_types), "names must be strings"
-        return name
+        return names
 
 
 class _SimpleTest:
@@ -209,8 +241,8 @@ class link(object):
         try:
             setattr(target[0], target[1], getattr(source[0], source[1]))
         finally:
-            source[0].on_trait_change(self._update_target, source[1])
-            target[0].on_trait_change(self._update_source, target[1])
+            source[0].observe(self._update_target, names=source[1])
+            target[0].observe(self._update_source, names=target[1])
 
     @contextlib.contextmanager
     def _busy_updating(self):
@@ -220,21 +252,21 @@ class link(object):
         finally:
             self.updating = False
 
-    def _update_target(self, name, old, new):
+    def _update_target(self, change):
         if self.updating:
             return
         with self._busy_updating():
-            setattr(self.target[0], self.target[1], new)
+            setattr(self.target[0], self.target[1], change['new'])
 
-    def _update_source(self, name, old, new):
+    def _update_source(self, change):
         if self.updating:
             return
         with self._busy_updating():
-            setattr(self.source[0], self.source[1], new)
+            setattr(self.source[0], self.source[1], change['new'])
 
     def unlink(self):
-        self.source[0].on_trait_change(self._update_target, self.source[1], remove=True)
-        self.target[0].on_trait_change(self._update_source, self.target[1], remove=True)
+        self.source[0].unobserve(self._update_target, names=self.source[1])
+        self.target[0].unobserve(self._update_source, names=self.target[1])
         self.source, self.target = None, None
 
 
@@ -245,6 +277,8 @@ class directional_link(object):
     ----------
     source : (object, attribute name) pair
     target : (object, attribute name) pair
+    transform: callable (optional)
+        Data transformation between source and target.
 
     Examples
     --------
@@ -255,13 +289,15 @@ class directional_link(object):
     """
     updating = False
 
-    def __init__(self, source, target):
+    def __init__(self, source, target, transform=None):
+        self._transform = transform if transform else lambda x: x
         _validate_link(source, target)
         self.source, self.target = source, target
         try:
-            setattr(target[0], target[1], getattr(source[0], source[1]))
+            setattr(target[0], target[1],
+                    self._transform(getattr(source[0], source[1])))
         finally:
-            self.source[0].on_trait_change(self._update, self.source[1])
+            self.source[0].observe(self._update, names=self.source[1])
 
     @contextlib.contextmanager
     def _busy_updating(self):
@@ -271,14 +307,15 @@ class directional_link(object):
         finally:
             self.updating = False
 
-    def _update(self, name, old, new):
+    def _update(self, change):
         if self.updating:
             return
         with self._busy_updating():
-            setattr(self.target[0], self.target[1], new)
+            setattr(self.target[0], self.target[1],
+                    self._transform(change['new']))
 
     def unlink(self):
-        self.source[0].on_trait_change(self._update, self.source[1], remove=True)
+        self.source[0].unobserve(self._update, names=self.source[1])
         self.source, self.target = None, None
 
 dlink = directional_link
@@ -288,12 +325,13 @@ dlink = directional_link
 # Base Descriptor Class 
 #-----------------------------------------------------------------------------
 
+
 class BaseDescriptor(object):
     """Base descriptor class
 
     Notes
     -----
-    This implements Python's descriptor prototol.  
+    This implements Python's descriptor prototol.
 
     This class is the base class for all such descriptors.  The
     only magic we use is a custom metaclass for the main :class:`HasTraits`
@@ -310,9 +348,22 @@ class BaseDescriptor(object):
     name = None
     this_class = None
 
+    def class_init(self, cls, name):
+        """Part of the initialization which may depend on the underlying
+        HasDescriptors class.
+
+        It is typically overloaded for specific types.
+
+        This method is called by :meth:`MetaHasDescriptors.__init__`
+        passing the class (`cls`) and `name` under which the descriptor
+        has been assigned.
+        """
+        self.this_class = cls
+        self.name = name
+
     def instance_init(self, obj):
         """Part of the initialization which may depend on the underlying
-        HasTraits instance.
+        HasDescriptors instance.
 
         It is typically overloaded for specific types.
 
@@ -330,23 +381,26 @@ class TraitType(BaseDescriptor):
     metadata = {}
     default_value = Undefined
     allow_none = False
+    read_only = False
     info_text = 'any value'
 
-    def __init__(self, default_value=Undefined, allow_none=None, **metadata):
+    def __init__(self, default_value=Undefined, allow_none=None, read_only=None, help=None, **metadata):
         """Declare a traitlet.
 
         If *allow_none* is True, None is a valid value in addition to any
-        values that are normally valid. The default is up to the subclass, but
-        most trait types have ``allow_none=False`` by default.
+        values that are normally valid. The default is up to the subclass.
+        For most trait types, the default value for ``allow_none`` is False.
 
-        Extra information about the traitlet can be passed in as keyword
-        arguments (``**metadata``). For instance, the config system uses 'config'
-        and 'help' keywords.
+        Extra metadata can be associated with the traitlet using the .tag() convenience method
+        or by using the traitlet instance's .metadata dictionary.
         """
         if default_value is not Undefined:
             self.default_value = default_value
         if allow_none is not None:
             self.allow_none = allow_none
+        if read_only is not None:
+            self.read_only = read_only
+        self.help = help if help is not None else ''
 
         if 'default' in metadata:
             # Warn the user that they probably meant default_value.
@@ -356,13 +410,27 @@ class TraitType(BaseDescriptor):
             )
 
         if len(metadata) > 0:
+            stacklevel = 1
+            f = inspect.currentframe()
+            # count supers to determine stacklevel for warning
+            while f.f_code.co_name == '__init__':
+                stacklevel += 1
+                f = f.f_back
+            
+            warn("metadata %s was set from the constructor.  Metadata should be set using the .tag() method, e.g., Int().tag(key1='value1', key2='value2')" % (metadata,),
+                 DeprecationWarning, stacklevel=stacklevel)
             if len(self.metadata) > 0:
-                self._metadata = self.metadata.copy()
-                self._metadata.update(metadata)
+                self.metadata = self.metadata.copy()
+                self.metadata.update(metadata)
             else:
-                self._metadata = metadata
+                self.metadata = metadata
         else:
-            self._metadata = self.metadata
+            self.metadata = self.metadata.copy()
+
+        # We add help to the metadata during a deprecation period so that
+        # code that looks for the help string there can find it.
+        if help is not None:
+            self.metadata['help'] = help
 
         self.init()
 
@@ -374,14 +442,14 @@ class TraitType(BaseDescriptor):
 
         Use self.default_value instead
         """
-        warn("get_default_value is deprecated: use the .default_value attribute",
+        warn("get_default_value is deprecated: use the .default_value attribute", DeprecationWarning,
              stacklevel=2)
         return self.default_value
 
     def init_default_value(self, obj):
         """DEPRECATED: Set the static default value for the trait type.
         """
-        warn("init_default_value is deprecated, and may be removed in the future",
+        warn("init_default_value is deprecated, and may be removed in the future", DeprecationWarning,
              stacklevel=2)
         value = self._validate(obj, self.default_value)
         obj._trait_values[self.name] = value
@@ -392,23 +460,33 @@ class TraitType(BaseDescriptor):
 
         This looks for:
 
-        - obj._{name}_default() on the class with the traitlet, or a subclass
+        * obj._{name}_default() on the class with the traitlet, or a subclass
           that obj belongs to.
-        - trait.make_dynamic_default, which is defined by Instance
+        * trait.make_dynamic_default, which is defined by Instance
 
         If neither exist, it returns None
         """
         # Traitlets without a name are not on the instance, e.g. in List or Union
         if self.name:
+
+            # Only look for default handlers in classes derived from self.this_class.
             mro = type(obj).mro()
             meth_name = '_%s_default' % self.name
-            for cls in mro[:mro.index(self.this_class)+1]:
+            for cls in mro[:mro.index(self.this_class) + 1]:
+                if hasattr(cls, '_trait_default_generators'):
+                    default_handler = cls._trait_default_generators.get(self.name)
+                    if default_handler is not None and default_handler.this_class == cls:
+                        return types.MethodType(default_handler.func, obj)
+
                 if meth_name in cls.__dict__:
-                    return getattr(obj, meth_name)
+                    method = getattr(obj, meth_name)
+                    _deprecated_method(method, cls, meth_name, "use @default decorator instead.")
+                    return method
 
         return getattr(self, 'make_dynamic_default', None)
 
     def instance_init(self, obj):
+        obj._cross_validation_lock = True
         # If no dynamic initialiser is present, and the trait implementation or
         # use provides a static default, transfer that to obj._trait_values.
         if (self._dynamic_default_callable(obj) is None) \
@@ -416,6 +494,26 @@ class TraitType(BaseDescriptor):
             v = self._validate(obj, self.default_value)
             if self.name is not None:
                 obj._trait_values[self.name] = v
+        obj._cross_validation_lock = False
+
+    def get(self, obj, cls):
+        try:
+            value = obj._trait_values[self.name]
+        except KeyError:
+            # Check for a dynamic initializer.
+            dynamic_default = self._dynamic_default_callable(obj)
+            if dynamic_default is None:
+                raise TraitError("No default value found for %s trait of %r"
+                                 % (self.name, obj))
+            value = self._validate(obj, dynamic_default())
+            obj._trait_values[self.name] = value
+            return value
+        except Exception:
+            # This should never be reached.
+            raise TraitError('Unexpected error in TraitType: '
+                             'default value not set properly')
+        else:
+            return value
 
     def __get__(self, obj, cls=None):
         """Get the value of the trait by self.name for the instance.
@@ -428,25 +526,9 @@ class TraitType(BaseDescriptor):
         if obj is None:
             return self
         else:
-            try:
-                value = obj._trait_values[self.name]
-            except KeyError:
-                # Check for a dynamic initializer.
-                dynamic_default = self._dynamic_default_callable(obj)
-                if dynamic_default is None:
-                    raise TraitError("No default value found for %s trait of %r"
-                                     % (self.name, obj))
-                value = self._validate(obj, dynamic_default())
-                obj._trait_values[self.name] = value
-                return value
-            except Exception:
-                # This should never be reached.
-                raise TraitError('Unexpected error in TraitType: '
-                                 'default value not set properly')
-            else:
-                return value
+            return self.get(obj, cls)
 
-    def __set__(self, obj, value):
+    def set(self, obj, value):
         new_value = self._validate(obj, value)
         try:
             old_value = obj._trait_values[self.name]
@@ -464,6 +546,17 @@ class TraitType(BaseDescriptor):
             # comparison above returns something other than True/False
             obj._notify_trait(self.name, old_value, new_value)
 
+    def __set__(self, obj, value):
+        """Set the value of the trait by self.name for the instance.
+
+        Values pass through a validation stage where errors are raised when
+        impropper types, or types that cannot be coerced, are encountered.
+        """
+        if self.read_only:
+            raise TraitError('The "%s" trait is read-only.' % self.name)
+        else:
+            self.set(obj, value)
+
     def _validate(self, obj, value):
         if value is None and self.allow_none:
             return value
@@ -474,8 +567,14 @@ class TraitType(BaseDescriptor):
         return value
 
     def _cross_validate(self, obj, value):
-        if hasattr(obj, '_%s_validate' % self.name):
-            cross_validate = getattr(obj, '_%s_validate' % self.name)
+        if self.name in obj._trait_validators:
+            proposal = {'trait': self, 'value': value, 'owner': obj}
+            value = obj._trait_validators[self.name](obj, proposal)
+        elif hasattr(obj, '_%s_validate' % self.name):
+            meth_name = '_%s_validate' % self.name
+            cross_validate = getattr(obj, meth_name)
+            _deprecated_method(cross_validate, obj.__class__, meth_name,
+                "use @validate decorator instead.")
             value = cross_validate(value, self)
         return value
 
@@ -499,72 +598,320 @@ class TraitType(BaseDescriptor):
         raise TraitError(e)
 
     def get_metadata(self, key, default=None):
-        return getattr(self, '_metadata', {}).get(key, default)
+        """DEPRECATED: Get a metadata value.
+
+        Use .metadata[key] or .metadata.get(key, default) instead.
+        """
+        if key == 'help':
+            msg = "use the instance .help string directly, like x.help"
+        else:
+            msg = "use the instance .metadata dictionary directly, like x.metadata[key] or x.metadata.get(key, default)"
+        warn(msg, DeprecationWarning, stacklevel=2)
+        return self.metadata.get(key, default)
 
     def set_metadata(self, key, value):
-        getattr(self, '_metadata', {})[key] = value
+        """DEPRECATED: Set a metadata key/value.
 
+        Use .metadata[key] = value instead.
+        """
+        if key == 'help':
+            msg = "use the instance .help string directly, like x.help = value"
+        else:
+            msg = "use the instance .metadata dictionary directly, like x.metadata[key] = value"
+        warn(msg, DeprecationWarning, stacklevel=2)
+        self.metadata[key] = value
+
+    def tag(self, **metadata):
+        """Sets metadata and returns self.
+
+        This allows convenient metadata tagging when initializing the trait, such as:
+
+        >>> Int(0).tag(config=True, sync=True)
+        """
+        self.metadata.update(metadata)
+        return self
+
+    def default_value_repr(self):
+        return repr(self.default_value)
 
 #-----------------------------------------------------------------------------
 # The HasTraits implementation
 #-----------------------------------------------------------------------------
 
+class _CallbackWrapper(object):
+    """An object adapting a on_trait_change callback into an observe callback.
 
-class MetaHasTraits(type):
-    """A metaclass for HasTraits.
+    The comparison operator __eq__ is implemented to enable removal of wrapped
+    callbacks.
+    """
+
+    def __init__(self, cb):
+        self.cb = cb
+        # Bound methods have an additional 'self' argument.
+        offset = -1 if isinstance(self.cb, types.MethodType) else 0
+        self.nargs = len(getargspec(cb)[0]) + offset
+        if (self.nargs > 4):
+            raise TraitError('a trait changed callback must have 0-4 arguments.')
+
+    def __eq__(self, other):
+        # The wrapper is equal to the wrapped element
+        if isinstance(other, _CallbackWrapper):
+            return self.cb == other.cb
+        else:
+            return self.cb == other
+
+    def __call__(self, change):
+        # The wrapper is callable
+        if self.nargs == 0:
+            self.cb()
+        elif self.nargs == 1:
+            self.cb(change['name'])
+        elif self.nargs == 2:
+            self.cb(change['name'], change['new'])
+        elif self.nargs == 3:
+            self.cb(change['name'], change['old'], change['new'])
+        elif self.nargs == 4:
+            self.cb(change['name'], change['old'], change['new'], change['owner'])
+
+def _callback_wrapper(cb):
+    if isinstance(cb, _CallbackWrapper):
+        return cb
+    else:
+        return _CallbackWrapper(cb)
+
+
+class MetaHasDescriptors(type):
+    """A metaclass for HasDescriptors.
 
     This metaclass makes sure that any TraitType class attributes are
     instantiated and sets their name attribute.
     """
 
     def __new__(mcls, name, bases, classdict):
-        """Create the HasTraits class.
+        """Create the HasDescriptors class."""
+        for k, v in iteritems(classdict):
+            # ----------------------------------------------------------------
+            # Support of deprecated behavior allowing for TraitType types
+            # to be used instead of TraitType instances.
+            if inspect.isclass(v) and issubclass(v, TraitType):
+                warn("Traits should be given as instances, not types (for example, `Int()`, not `Int`)",
+                     DeprecationWarning, stacklevel=2)
+                classdict[k] = v()
+            # ----------------------------------------------------------------
 
-        This instantiates all TraitTypes in the class dict and sets their
-        :attr:`name` attribute.
-        """
-        # print "MetaHasTraitlets (mcls, name): ", mcls, name
-        # print "MetaHasTraitlets (bases): ", bases
-        # print "MetaHasTraitlets (classdict): ", classdict
-        for k,v in iteritems(classdict):
-            if isinstance(v, BaseDescriptor):
-                v.name = k
-            elif inspect.isclass(v):
-                if issubclass(v, TraitType):
-                    vinst = v()
-                    vinst.name = k
-                    classdict[k] = vinst
-        return super(MetaHasTraits, mcls).__new__(mcls, name, bases, classdict)
+        return super(MetaHasDescriptors, mcls).__new__(mcls, name, bases, classdict)
 
     def __init__(cls, name, bases, classdict):
-        """Finish initializing the HasTraits class.
+        """Finish initializing the HasDescriptors class."""
+        super(MetaHasDescriptors, cls).__init__(name, bases, classdict)
+        cls.setup_class(classdict)
 
-        This sets the :attr:`this_class` attribute of each BaseDescriptor in the
-        class dict to the newly created class ``cls``.
+    def setup_class(cls, classdict):
+        """Setup descriptor instance on the class
+
+        This sets the :attr:`this_class` and :attr:`name` attributes of each
+        BaseDescriptor in the class dict of the newly created ``cls`` before
+        calling their :attr:`class_init` method.
         """
         for k, v in iteritems(classdict):
             if isinstance(v, BaseDescriptor):
-                v.this_class = cls
-        super(MetaHasTraits, cls).__init__(name, bases, classdict)
+                v.class_init(cls, k)
 
 
-class HasTraits(py3compat.with_metaclass(MetaHasTraits, object)):
-    """The base class for all classes that have traitlets.
+class MetaHasTraits(MetaHasDescriptors):
+    """A metaclass for HasTraits."""
+
+    def setup_class(cls, classdict):
+        cls._trait_default_generators = {}
+        super(MetaHasTraits, cls).setup_class(classdict)
+
+
+def observe(*names, **kwargs):
+    """A decorator which can be used to observe Traits on a class.
+
+    The handler passed to the decorator can have no argument or one ``change``
+    dict argument. The change dictionary at least holds a 'type' key,
+    corresponding to the type of notification.
+
+    Other keys may be passed depending on the value of 'type'. In the case
+    where type is 'change', we also have the following keys:
+    * ``owner`` : the HasTraits instance
+    * ``old`` : the old value of the modified trait attribute
+    * ``new`` : the new value of the modified trait attribute
+    * ``name`` : the name of the modified trait attribute.
+
+    Parameters
+    ----------
+    *names
+        The str names of the Traits to observe on the object.
+    """
+    return ObserveHandler(names, type=kwargs.get('type', 'change'))
+
+
+def observe_compat(func):
+    """Backward-compatibility shim decorator for observers
+    
+    Use with:
+    
+    @observe('name')
+    @observe_compat
+    def _foo_changed(self, change):
+        ...
+    
+    With this, `super()._foo_changed(self, name, old, new)` in subclasses will still work.
+    Allows adoption of new observer API without breaking subclasses that override and super.
+    """
+    def compatible_observer(self, change_or_name, old=Undefined, new=Undefined):
+        if isinstance(change_or_name, dict):
+            change = change_or_name
+        else:
+            clsname = self.__class__.__name__
+            warn("A parent of %s._%s_changed has adopted the new @observe(change) API" % (
+                clsname, change_or_name), DeprecationWarning)
+            change = {
+                'type': 'change',
+                'old': old,
+                'new': new,
+                'name': change_or_name,
+                'owner': self,
+            }
+        return func(self, change)
+    return compatible_observer
+
+
+def validate(*names):
+    """A decorator to register cross validator of HasTraits object's state
+    when a Trait is set.
+
+    The handler passed to the decorator must have one ``proposal`` dict argument.
+    The proposal dictionary must hold the following keys:
+    * ``owner`` : the HasTraits instance
+    * ``value`` : the proposed value for the modified trait attribute
+    * ``trait`` : the TraitType instance associated with the attribute
+
+    Parameters
+    ----------
+    names
+        The str names of the Traits to validate.
+
+    Notes
+    -----
+    Since the owner has access to the ``Hastraits`` instance via the 'owner' key,
+    the registered cross validator could potentially make changes to attributes
+    of the ``HasTraits`` instance. However, we recommend not to do so. The reason
+    is that the cross-validation of attributes may run in arbitrary order when
+    exitting the ``hold_trait_modification` context, and such changes may not
+    commute.
+    """
+    return ValidateHandler(names)
+
+
+def default(name):
+    """ A decorator which assigns a dynamic default for a Trait on a HasTraits object.
+
+    Parameters
+    ----------
+    name
+        The str name of the Trait on the object whose default should be generated.
+
+    Notes
+    -----
+    Unlike observers and validators which are properties of the HasTraits
+    instance, default value generators are class-level properties.
+
+    Besides, default generators are only invoked if they are registered in
+    subclasses of `this_type`.
+
+    ::
+
+        class A(HasTraits):
+            bar = Int()
+
+            @default('bar')
+            def get_bar_default(self):
+                return 11
+
+
+        class B(A):
+            bar = Float()  # This trait ignores the default generator defined in
+                           # the base class A
+
+
+        class C(B):
+
+            @default('bar')
+            def some_other_default(self):  # This default generator should not be
+                return 3.0                 # ignored since it is defined in a
+                                           # class derived from B.a.this_class.
+    """
+    return DefaultHandler(name)
+
+
+class EventHandler(BaseDescriptor):
+
+    def _init_call(self, func):
+        self.func = func
+        return self
+
+    def __call__(self, *args, **kwargs):
+        """Pass `*args` and `**kwargs` to the handler's funciton if it exists."""
+        if hasattr(self, 'func'):
+            return self.func(*args, **kwargs)
+        else:
+            return self._init_call(*args, **kwargs)
+
+    def __get__(self, inst, cls=None):
+        if inst is None:
+            return self
+        return types.MethodType(self.func, inst)
+
+
+class ObserveHandler(EventHandler):
+
+    def __init__(self, names, type):
+        self.trait_names = names
+        self.type = type
+
+    def instance_init(self, inst):
+        inst.observe(self, self.trait_names, type=self.type)
+
+
+class ValidateHandler(EventHandler):
+
+    def __init__(self, names):
+        self.trait_names = names
+
+    def instance_init(self, inst):
+        inst._register_validator(self, self.trait_names)
+
+
+class DefaultHandler(EventHandler):
+
+    def __init__(self, name):
+        self.trait_name = name
+
+    def class_init(self, cls, name):
+        super(DefaultHandler, self).class_init(cls, name)
+        cls._trait_default_generators[self.trait_name] = self
+
+
+class HasDescriptors(py3compat.with_metaclass(MetaHasDescriptors, object)):
+    """The base class for all classes that have descriptors.
     """
 
     def __new__(cls, *args, **kw):
         # This is needed because object.__new__ only accepts
         # the cls argument.
-        new_meth = super(HasTraits, cls).__new__
+        new_meth = super(HasDescriptors, cls).__new__
         if new_meth is object.__new__:
             inst = new_meth(cls)
         else:
             inst = new_meth(cls, **kw)
-        inst._trait_values = {}
-        inst._trait_notifiers = {}
-        inst._cross_validation_lock = True
-        # Here we tell all the TraitType instances to set their default
-        # values on the instance.
+        inst.setup_instance()
+        return inst
+
+    def setup_instance(self):
+        cls = self.__class__
         for key in dir(cls):
             # Some descriptors raise AttributeError like zope.interface's
             # __provides__ attributes even though they exist.  This causes
@@ -575,17 +922,51 @@ class HasTraits(py3compat.with_metaclass(MetaHasTraits, object)):
                 pass
             else:
                 if isinstance(value, BaseDescriptor):
-                    value.instance_init(inst)
-        inst._cross_validation_lock = False
-        return inst
+                    value.instance_init(self)
+
+
+class HasTraits(py3compat.with_metaclass(MetaHasTraits, HasDescriptors)):
+
+    def setup_instance(self):
+        self._trait_values = {}
+        self._trait_notifiers = {}
+        self._trait_validators = {}
+        super(HasTraits, self).setup_instance()
 
     def __init__(self, *args, **kw):
         # Allow trait values to be set using keyword arguments.
         # We need to use setattr for this to trigger validation and
         # notifications.
+        self._cross_validation_lock = False
         with self.hold_trait_notifications():
             for key, value in iteritems(kw):
                 setattr(self, key, value)
+
+    def __getstate__(self):
+        d = self.__dict__.copy()
+        # event handlers stored on an instance are
+        # expected to be reinstantiated during a
+        # recall of instance_init during __setstate__
+        d['_trait_notifiers'] = {}
+        d['_trait_validators'] = {}
+        return d
+
+    def __setstate__(self, state):
+        self.__dict__ = state.copy()
+
+        # event handlers are reassigned to self
+        cls = self.__class__
+        for key in dir(cls):
+            # Some descriptors raise AttributeError like zope.interface's
+            # __provides__ attributes even though they exist.  This causes
+            # AttributeErrors even though they are listed in dir(cls).
+            try:
+                value = getattr(cls, key)
+            except AttributeError:
+                pass
+            else:
+                if isinstance(value, EventHandler):
+                    value.instance_init(self)
 
     @contextlib.contextmanager
     def hold_trait_notifications(self):
@@ -601,114 +982,130 @@ class HasTraits(py3compat.with_metaclass(MetaHasTraits, object)):
             return
         else:
             cache = {}
-            _notify_trait = self._notify_trait
+            notify_change = self.notify_change
 
-            def merge(previous, current):
-                """merges notifications of the form (name, old, value)"""
-                if previous is None:
-                    return current
+            def compress(past_changes, change):
+                """Merges the provided change with the last if possible."""
+                if past_changes is None:
+                    return [change]
                 else:
-                    return (current[0], previous[1], current[2])
+                    if past_changes[-1]['type'] == 'change' and change['type'] == 'change':
+                        past_changes[-1]['new'] = change['new']
+                    else:
+                        # In case of changes other than 'change', append the notification.
+                        past_changes.append(change)
+                    return past_changes
 
-            def hold(*a):
-                cache[a[0]] = merge(cache.get(a[0]), a)
+            def hold(change):
+                name = change['name']
+                cache[name] = compress(cache.get(name), change)
 
             try:
-                self._notify_trait = hold
+                # Replace notify_change with `hold`, caching and compressing
+                # notifications, disable cross validation and yield.
+                self.notify_change = hold
                 self._cross_validation_lock = True
                 yield
+                # Cross validate final values when context is released.
                 for name in list(cache.keys()):
-                    if hasattr(self, '_%s_validate' % name):
-                        cross_validate = getattr(self, '_%s_validate' % name)
-                        setattr(self, name, cross_validate(getattr(self, name), self))
+                    trait = getattr(self.__class__, name)
+                    value = trait._cross_validate(self, getattr(self, name))
+                    setattr(self, name, value)
             except TraitError as e:
-                self._notify_trait = lambda *x: None
-                for name, value in cache.items():
-                    if value[1] is not Undefined:
-                        setattr(self, name, value[1])
-                    else:
-                        self._trait_values.pop(name)
+                # Roll back in case of TraitError during final cross validation.
+                self.notify_change = lambda x: None
+                for name, changes in cache.items():
+                    for change in changes[::-1]:
+                        # TODO: Separate in a rollback function per notification type.
+                        if change['type'] == 'change':
+                            if change['old'] is not Undefined:
+                                setattr(self, name, change['old'])
+                            else:
+                                self._trait_values.pop(name)
                 cache = {}
                 raise e
             finally:
-                self._notify_trait = _notify_trait
+                # Reset the notify_change to original value, enable cross-validation
+                # and fire resulting change notifications.
+                self.notify_change = notify_change
                 self._cross_validation_lock = False
-                if isinstance(_notify_trait, types.MethodType):
-                    # FIXME: remove when support is bumped to 3.4.
-                    # when original method is restored,
-                    # remove the redundant value from __dict__
-                    # (only used to preserve pickleability on Python < 3.4)
-                    self.__dict__.pop('_notify_trait', None)
 
+                if isinstance(notify_change, types.MethodType):
+                    # Presence of the notify_change method
+                    # on __dict__ can cause memory leaks
+                    # and prevents pickleability
+                    self.__dict__.pop('notify_change')
                 # trigger delayed notifications
-                for v in cache.values():
-                    self._notify_trait(*v)
+                for changes in cache.values():
+                    for change in changes:
+                        self.notify_change(change)
 
     def _notify_trait(self, name, old_value, new_value):
+        self.notify_change({
+            'name': name,
+            'old': old_value,
+            'new': new_value,
+            'owner': self,
+            'type': 'change',
+        })
 
-        # First dynamic ones
+    def notify_change(self, change):
+        name, type = change['name'], change['type']
+
         callables = []
-        callables.extend(self._trait_notifiers.get(name,[]))
-        callables.extend(self._trait_notifiers.get('anytrait',[]))
+        callables.extend(self._trait_notifiers.get(name, {}).get(type, []))
+        callables.extend(self._trait_notifiers.get(name, {}).get(All, []))
+        callables.extend(self._trait_notifiers.get(All, {}).get(type, []))
+        callables.extend(self._trait_notifiers.get(All, {}).get(All, []))
 
         # Now static ones
-        try:
-            cb = getattr(self, '_%s_changed' % name)
-        except:
-            pass
-        else:
-            callables.append(cb)
+        magic_name = '_%s_changed' % name
+        if hasattr(self, magic_name):
+            class_value = getattr(self.__class__, magic_name)
+            if not isinstance(class_value, ObserveHandler):
+                _deprecated_method(class_value, self.__class__, magic_name,
+                    "use @observe and @unobserve instead.")
+                cb = getattr(self, magic_name)
+                # Only append the magic method if it was not manually registered
+                if cb not in callables:
+                    callables.append(_callback_wrapper(cb))
 
         # Call them all now
+        # Traits catches and logs errors here.  I allow them to raise
         for c in callables:
-            # Traits catches and logs errors here.  I allow them to raise
-            if callable(c):
-                argspec = getargspec(c)
+            # Bound methods have an additional 'self' argument.
 
-                nargs = len(argspec[0])
-                # Bound methods have an additional 'self' argument
-                # I don't know how to treat unbound methods, but they
-                # can't really be used for callbacks.
-                if isinstance(c, types.MethodType):
-                    offset = -1
-                else:
-                    offset = 0
-                if nargs + offset == 0:
-                    c()
-                elif nargs + offset == 1:
-                    c(name)
-                elif nargs + offset == 2:
-                    c(name, new_value)
-                elif nargs + offset == 3:
-                    c(name, old_value, new_value)
-                else:
-                    raise TraitError('a trait changed callback '
-                                        'must have 0-3 arguments.')
-            else:
-                raise TraitError('a trait changed callback '
-                                    'must be callable.')
+            if isinstance(c, _CallbackWrapper):
+                c = c.__call__
+            elif isinstance(c, EventHandler):
+                c = getattr(self, c.name)
+            
+            c(change)
 
-    def _add_notifiers(self, handler, name):
+    def _add_notifiers(self, handler, name, type):
         if name not in self._trait_notifiers:
             nlist = []
-            self._trait_notifiers[name] = nlist
+            self._trait_notifiers[name] = {type: nlist}
         else:
-            nlist = self._trait_notifiers[name]
+            if type not in self._trait_notifiers[name]:
+                nlist = []
+                self._trait_notifiers[name][type] = nlist
+            else:
+                nlist = self._trait_notifiers[name][type]
         if handler not in nlist:
             nlist.append(handler)
 
-    def _remove_notifiers(self, handler, name):
-        if name in self._trait_notifiers:
-            nlist = self._trait_notifiers[name]
-            try:
-                index = nlist.index(handler)
-            except ValueError:
-                pass
+    def _remove_notifiers(self, handler, name, type):
+        try:
+            if handler is None:
+                del self._trait_notifiers[name][type]
             else:
-                del nlist[index]
+                self._trait_notifiers[name][type].remove(handler)
+        except KeyError:
+            pass
 
-    def on_trait_change(self, handler, name=None, remove=False):
-        """Setup a handler to be called when a trait changes.
+    def on_trait_change(self, handler=None, name=None, remove=False):
+        """DEPRECATED: Setup a handler to be called when a trait changes.
 
         This is used to setup dynamic notifications of trait changes.
 
@@ -718,12 +1115,15 @@ class HasTraits(py3compat.with_metaclass(MetaHasTraits, object)):
         _a_changed(self, name, old, new) (fewer arguments can be used, see
         below).
 
+        If `remove` is True and `handler` is not specified, all change
+        handlers for the specified name are uninstalled.
+
         Parameters
         ----------
-        handler : callable
+        handler : callable, None
             A callable that is called when a trait changes.  Its
-            signature can be handler(), handler(name), handler(name, new)
-            or handler(name, old, new).
+            signature can be handler(), handler(name), handler(name, new),
+            handler(name, old, new), or handler(name, old, new, self).
         name : list, str, None
             If None, the handler will apply to all traits.  If a list
             of str, handler will apply to all names in the list.  If a
@@ -732,14 +1132,110 @@ class HasTraits(py3compat.with_metaclass(MetaHasTraits, object)):
             If False (the default), then install the handler.  If True
             then unintall it.
         """
+        warn("on_trait_change is deprecated: use observe instead",
+             DeprecationWarning, stacklevel=2)
+        if name is None:
+            name = All
         if remove:
-            names = parse_notifier_name(name)
-            for n in names:
-                self._remove_notifiers(handler, n)
+            self.unobserve(_callback_wrapper(handler), names=name)
         else:
-            names = parse_notifier_name(name)
-            for n in names:
-                self._add_notifiers(handler, n)
+            self.observe(_callback_wrapper(handler), names=name)
+
+    def observe(self, handler, names=All, type='change'):
+        """Setup a handler to be called when a trait changes.
+
+        This is used to setup dynamic notifications of trait changes.
+
+        Parameters
+        ----------
+        handler : callable
+            A callable that is called when a trait changes. Its
+            signature can be ``handler()`` or ``handler(change)``, where change
+            is a dictionary. The change dictionary at least holds a 'type' key.
+            * ``type``: the type of notification.
+            Other keys may be passed depending on the value of 'type'. In the
+            case where type is 'change', we also have the following keys:
+            * ``owner`` : the HasTraits instance
+            * ``old`` : the old value of the modified trait attribute
+            * ``new`` : the new value of the modified trait attribute
+            * ``name`` : the name of the modified trait attribute.
+        names : list, str, All
+            If names is All, the handler will apply to all traits.  If a list
+            of str, handler will apply to all names in the list.  If a
+            str, the handler will apply just to that name.
+        type : str, All (default: 'change')
+            The type of notification to filter by. If equal to All, then all
+            notifications are passed to the observe handler.
+        """
+        names = parse_notifier_name(names)
+        for n in names:
+            self._add_notifiers(handler, n, type)
+
+    def unobserve(self, handler, names=All, type='change'):
+        """Remove a trait change handler.
+
+        This is used to unregister handlers to trait change notificiations.
+
+        Parameters
+        ----------
+        handler : callable
+            The callable called when a trait attribute changes.
+        names : list, str, All (default: All)
+            The names of the traits for which the specified handler should be
+            uninstalled. If names is All, the specified handler is uninstalled
+            from the list of notifiers corresponding to all changes.
+        type : str or All (default: 'change')
+            The type of notification to filter by. If All, the specified handler
+            is uninstalled from the list of notifiers corresponding to all types.
+        """
+        names = parse_notifier_name(names)
+        for n in names:
+            self._remove_notifiers(handler, n, type)
+
+    def unobserve_all(self, name=All):
+        """Remove trait change handlers of any type for the specified name.
+        If name is not specified, removes all trait notifiers."""
+        if name is All:
+            self._trait_notifiers = {}
+        else:
+            try:
+                del self._trait_notifiers[name]
+            except KeyError:
+                pass
+
+    def _register_validator(self, handler, names):
+        """Setup a handler to be called when a trait should be cross valdiated.
+
+        This is used to setup dynamic notifications for cross-validation.
+
+        If a validator is already registered for any of the provided names, a
+        TraitError is raised and no new validator is registerd.
+
+        Parameters
+        ----------
+        handler : callable
+            A callable that is called when the given trait is cross-validated.
+            Its signature is handler(proposal), where proposal is a dictionary
+            with the following keys:
+                * ``owner`` : the HasTraits instance
+                * ``value`` : the proposed value for the modified trait attribute
+                * ``trait`` : the TraitType instance associated with the attribute
+        names : List of strings
+            The names of the traits that should be cross-validated
+        """
+        for name in names:
+            if name in self._trait_validators:
+                raise TraitError("A cross-validator for the trait"
+                                 " '%s' already exists" % name)
+
+            magic_name = '_%s_validate' % name
+            if hasattr(self, magic_name):
+                class_value = getattr(self.__class__, magic_name)
+                if not isinstance(class_value, ValidateHandler):
+                    _deprecated_method(class_value, self.__class, magic_name,
+                        "use @validate decorator instead.")
+        for name in names:
+            self._trait_validators[name] = handler
 
     @classmethod
     def class_trait_names(cls, **metadata):
@@ -752,7 +1248,7 @@ class HasTraits(py3compat.with_metaclass(MetaHasTraits, object)):
 
     @classmethod
     def class_traits(cls, **metadata):
-        """Get a `dict` of all the traits of this class.  The dictionary
+        """Get a ``dict`` of all the traits of this class.  The dictionary
         is keyed on the name and the values are the TraitType objects.
 
         This method is just like the :meth:`traits` method, but is unbound.
@@ -764,10 +1260,8 @@ class HasTraits(py3compat.with_metaclass(MetaHasTraits, object)):
         filter traits based on metadata values.  The functions should
         take a single value as an argument and return a boolean.  If
         any function returns False, then the trait is not included in
-        the output.  This does not allow for any simple way of
-        testing that a metadata name exists and has any
-        value because get_metadata returns None if a metadata key
-        doesn't exist.
+        the output.  If a metadata key doesn't exist, None will be passed
+        to the function.
         """
         traits = dict([memb for memb in getmembers(cls) if
                      isinstance(memb[1], TraitType)])
@@ -775,14 +1269,12 @@ class HasTraits(py3compat.with_metaclass(MetaHasTraits, object)):
         if len(metadata) == 0:
             return traits
 
-        for meta_name, meta_eval in metadata.items():
-            if type(meta_eval) is not FunctionType:
-                metadata[meta_name] = _SimpleTest(meta_eval)
-
         result = {}
         for name, trait in traits.items():
             for meta_name, meta_eval in metadata.items():
-                if not meta_eval(trait.get_metadata(meta_name)):
+                if type(meta_eval) is not types.FunctionType:
+                    meta_eval = _SimpleTest(meta_eval)
+                if not meta_eval(trait.metadata.get(meta_name, None)):
                     break
             else:
                 result[name] = trait
@@ -808,7 +1300,7 @@ class HasTraits(py3compat.with_metaclass(MetaHasTraits, object)):
         return self.traits(**metadata).keys()
 
     def traits(self, **metadata):
-        """Get a `dict` of all the traits of this class.  The dictionary
+        """Get a ``dict`` of all the traits of this class.  The dictionary
         is keyed on the name and the values are the TraitType objects.
 
         The TraitTypes returned don't know anything about the values
@@ -818,10 +1310,8 @@ class HasTraits(py3compat.with_metaclass(MetaHasTraits, object)):
         filter traits based on metadata values.  The functions should
         take a single value as an argument and return a boolean.  If
         any function returns False, then the trait is not included in
-        the output.  This does not allow for any simple way of
-        testing that a metadata name exists and has any
-        value because get_metadata returns None if a metadata key
-        doesn't exist.
+        the output.  If a metadata key doesn't exist, None will be passed
+        to the function.
         """
         traits = dict([memb for memb in getmembers(self.__class__) if
                      isinstance(memb[1], TraitType)])
@@ -829,14 +1319,12 @@ class HasTraits(py3compat.with_metaclass(MetaHasTraits, object)):
         if len(metadata) == 0:
             return traits
 
-        for meta_name, meta_eval in metadata.items():
-            if type(meta_eval) is not FunctionType:
-                metadata[meta_name] = _SimpleTest(meta_eval)
-
         result = {}
         for name, trait in traits.items():
             for meta_name, meta_eval in metadata.items():
-                if not meta_eval(trait.get_metadata(meta_name)):
+                if type(meta_eval) is not types.FunctionType:
+                    meta_eval = _SimpleTest(meta_eval)
+                if not meta_eval(trait.metadata.get(meta_name, None)):
                     break
             else:
                 result[name] = trait
@@ -851,7 +1339,7 @@ class HasTraits(py3compat.with_metaclass(MetaHasTraits, object)):
             raise TraitError("Class %s does not have a trait named %s" %
                                 (self.__class__.__name__, traitname))
         else:
-            return trait.get_metadata(key, default)
+            return trait.metadata.get(key, default)
 
     def add_traits(self, **traits):
         """Dynamically add trait attributes to the HasTraits instance."""
@@ -859,6 +1347,14 @@ class HasTraits(py3compat.with_metaclass(MetaHasTraits, object)):
                               traits)
         for trait in traits.values():
             trait.instance_init(self)
+
+    def set_trait(self, name, value):
+        """Forcibly sets trait attribute, including read-only attributes."""
+        if not self.has_trait(name):
+            raise TraitError("Class %s does not have a trait named %s" %
+                                (self.__class__.__name__, name))
+        else:
+            self.traits()[name].set(self, value)
 
 #-----------------------------------------------------------------------------
 # Actual TraitTypes implementations/subclasses
@@ -940,7 +1436,7 @@ class Type(ClassBasedTraitType):
         if not (inspect.isclass(klass) or isinstance(klass, py3compat.string_types)):
             raise TraitError("A Type trait must specify a class.")
 
-        self.klass       = klass
+        self.klass = klass
 
         super(Type, self).__init__(new_default_value, **metadata)
 
@@ -981,6 +1477,13 @@ class Type(ClassBasedTraitType):
         if isinstance(self.default_value, py3compat.string_types):
             self.default_value = self._resolve_string(self.default_value)
 
+    def default_value_repr(self):
+        value = self.default_value
+        if isinstance(value, py3compat.string_types):
+            return repr(value)
+        else:
+            return repr('{}.{}'.format(value.__module__, value.__name__))
+
 
 class Instance(ClassBasedTraitType):
     """A trait whose value must be an instance of a specified class.
@@ -1009,7 +1512,7 @@ class Instance(ClassBasedTraitType):
             Positional arguments for generating the default value.
         kw : dict
             Keyword arguments for generating the default value.
-        allow_none : bool [default True]
+        allow_none : bool [ default False ]
             Indicates whether None is allowed as a value.
 
         Notes
@@ -1068,6 +1571,9 @@ class Instance(ClassBasedTraitType):
             return None
         return self.klass(*(self.default_args or ()),
                           **(self.default_kwargs or {}))
+
+    def default_value_repr(self):
+        return repr(self.make_dynamic_default())
 
 
 class ForwardDeclaredMixin(object):
@@ -1145,21 +1651,30 @@ class Union(TraitType):
         self.default_value = self.trait_types[0].default_value
         super(Union, self).__init__(**metadata)
 
+    def class_init(self, cls, name):
+        for trait_type in self.trait_types:
+            trait_type.class_init(cls, None)
+        super(Union, self).class_init(cls, name)
+
     def instance_init(self, obj):
         for trait_type in self.trait_types:
-            trait_type.this_class = self.this_class
             trait_type.instance_init(obj)
         super(Union, self).instance_init(obj)
 
     def validate(self, obj, value):
-        for trait_type in self.trait_types:
-            try:
-                v = trait_type._validate(obj, value)
-                self._metadata = trait_type._metadata
-                return v
-            except TraitError:
-                continue
+        obj._cross_validation_lock = True
+        try:
+            for trait_type in self.trait_types:
+                try:
+                    v = trait_type._validate(obj, value)
+                    self.metadata = trait_type.metadata
+                    return v
+                except TraitError:
+                    continue
+        finally:
+            obj._cross_validation_lock = False
         self.error(obj, value)
+
 
     def __or__(self, other):
         if isinstance(other, Union):
@@ -1460,8 +1975,14 @@ class Enum(TraitType):
 
 class CaselessStrEnum(Enum):
     """An enum of strings where the case should be ignored."""
-
+    
+    def __init__(self, values, default_value=Undefined, **metadata):
+        values = [py3compat.cast_unicode_py2(value) for value in values]
+        super(CaselessStrEnum, self).__init__(values, default_value=default_value, **metadata)
+    
     def validate(self, obj, value):
+        if isinstance(value, str):
+            value = py3compat.cast_unicode_py2(value)
         if not isinstance(value, py3compat.string_types):
             self.error(obj, value)
 
@@ -1492,7 +2013,7 @@ class Container(Instance):
         If only one arg is given and it is not a Trait, it is taken as
         ``default_value``:
 
-        ``c = List([1,2,3])``
+        ``c = List([1, 2, 3])``
 
         Parameters
         ----------
@@ -1525,6 +2046,9 @@ class Container(Instance):
             raise TypeError('default value of %s was %s' %(self.__class__.__name__, default_value))
 
         if is_trait(trait):
+            if isinstance(trait, type):
+                warn("Traits should be given as instances, not types (for example, `Int()`, not `Int`)",
+                     DeprecationWarning, stacklevel=3)
             self._trait = trait() if isinstance(trait, type) else trait
         elif trait is not None:
             raise TypeError("`trait` must be a Trait or None, got %s" % repr_type(trait))
@@ -1560,9 +2084,13 @@ class Container(Instance):
                 validated.append(v)
         return self.klass(validated)
 
+    def class_init(self, cls, name):
+        if isinstance(self._trait, TraitType):
+            self._trait.class_init(cls, None)
+        super(Container, self).class_init(cls, name)
+
     def instance_init(self, obj):
         if isinstance(self._trait, TraitType):
-            self._trait.this_class = self.this_class
             self._trait.instance_init(obj)
         super(Container, self).instance_init(obj)
 
@@ -1584,7 +2112,7 @@ class List(Container):
         If only one arg is given and it is not a Trait, it is taken as
         ``default_value``:
 
-        ``c = List([1,2,3])``
+        ``c = List([1, 2, 3])``
 
         Parameters
         ----------
@@ -1645,7 +2173,7 @@ class Set(List):
         If only one arg is given and it is not a Trait, it is taken as
         ``default_value``:
 
-        ``c = Set({1,2,3})``
+        ``c = Set({1, 2, 3})``
 
         Parameters
         ----------
@@ -1677,14 +2205,14 @@ class Tuple(Container):
 
         Create a fixed-type tuple with Traits:
 
-        ``t = Tuple(Int, Str, CStr)``
+        ``t = Tuple(Int(), Str(), CStr())``
 
         would be length 3, with Int,Str,CStr for each element.
 
         If only one arg is given and it is not a Trait, it is taken as
         default_value:
 
-        ``t = Tuple((1,2,3))``
+        ``t = Tuple((1, 2, 3))``
 
         Otherwise, ``default_value`` *must* be specified by keyword.
 
@@ -1699,17 +2227,16 @@ class Tuple(Container):
 
         default_value : SequenceType [ optional ]
             The default value for the Tuple.  Must be list/tuple/set, and
-            will be cast to a tuple. If `traits` are specified, the
-            `default_value` must conform to the shape and type they specify.
+            will be cast to a tuple. If ``traits`` are specified,
+            ``default_value`` must conform to the shape and type they specify.
         """
-        default_value = metadata.pop('default_value', None)
-
+        default_value = metadata.pop('default_value', Undefined)
         # allow Tuple((values,)):
-        if len(traits) == 1 and default_value is None and not is_trait(traits[0]):
+        if len(traits) == 1 and default_value is Undefined and not is_trait(traits[0]):
             default_value = traits[0]
             traits = ()
 
-        if default_value is None:
+        if default_value is Undefined:
             args = ()
         elif isinstance(default_value, self._valid_defaults):
             args = (default_value,)
@@ -1718,6 +2245,9 @@ class Tuple(Container):
 
         self._traits = []
         for trait in traits:
+            if isinstance(trait, type):
+                warn("Traits should be given as instances, not types (for example, `Int()`, not `Int`)",
+                     DeprecationWarning, stacklevel=2)
             t = trait() if isinstance(trait, type) else trait
             self._traits.append(t)
 
@@ -1745,10 +2275,15 @@ class Tuple(Container):
                 validated.append(v)
         return tuple(validated)
 
+    def class_init(self, cls, name):
+        for trait in self._traits:
+            if isinstance(trait, TraitType):
+                trait.class_init(cls, None)
+        super(Container, self).class_init(cls, name)
+
     def instance_init(self, obj):
         for trait in self._traits:
             if isinstance(trait, TraitType):
-                trait.this_class = self.this_class
                 trait.instance_init(obj)
         super(Container, self).instance_init(obj)
 
@@ -1797,6 +2332,9 @@ class Dict(Instance):
 
         # Case where a type of TraitType is provided rather than an instance
         if is_trait(trait):
+            if isinstance(trait, type):
+                warn("Traits should be given as instances, not types (for example, `Int()`, not `Int`)",
+                     DeprecationWarning, stacklevel=2)
             self._trait = trait() if isinstance(trait, type) else trait
         elif trait is not None:
             raise TypeError("`trait` must be a Trait or None, got %s" % repr_type(trait))
@@ -1840,13 +2378,19 @@ class Dict(Instance):
                 validated[key] = v
         return self.klass(validated)
 
+    def class_init(self, cls, name):
+        if isinstance(self._trait, TraitType):
+            self._trait.class_init(cls, None)
+        if self._traits is not None:
+            for trait in self._traits.values():
+                trait.class_init(cls, None)
+        super(Dict, self).class_init(cls, name)
+
     def instance_init(self, obj):
         if isinstance(self._trait, TraitType):
-            self._trait.this_class = self.this_class
             self._trait.instance_init(obj)
         if self._traits is not None:
             for trait in self._traits.values():
-                trait.this_class = self.this_class
                 trait.instance_init(obj)
         super(Dict, self).instance_init(obj)
 
