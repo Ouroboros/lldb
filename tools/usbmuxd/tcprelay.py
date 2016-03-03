@@ -19,18 +19,22 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 import usbmux
-import SocketServer
 import select
 from optparse import OptionParser
 import sys
 import threading
 
+try:
+	import socketserver
+except ImportError:
+	import SocketServer as socketserver
+
 class SocketRelay(object):
 	def __init__(self, a, b, maxbuf=65535):
 		self.a = a
 		self.b = b
-		self.atob = ""
-		self.btoa = ""
+		self.atob = b""
+		self.btoa = b""
 		self.maxbuf = maxbuf
 	def handle(self):
 		while True:
@@ -66,37 +70,37 @@ class SocketRelay(object):
 				self.btoa += s
 			#print "Relay iter: %8d atob, %8d btoa, lists: %r %r %r"%(len(self.atob), len(self.btoa), rlo, wlo, xlo)
 
-class TCPRelay(SocketServer.BaseRequestHandler):
+class TCPRelay(socketserver.BaseRequestHandler):
 	def handle(self):
-		print "Incoming connection to %d"%self.server.server_address[1]
+		print("Incoming connection to %d"%self.server.server_address[1])
 		mux = usbmux.USBMux(options.sockpath)
-		print "Waiting for devices..."
+		print("Waiting for devices...")
 		if not mux.devices:
 			mux.process(1.0)
 		if not mux.devices:
-			print "No device found"
+			print("No device found")
 			self.request.close()
 			return
 		dev = mux.devices[0]
-		print "Connecting to device %s"%str(dev)
+		print("Connecting to device %s"%str(dev))
 		dsock = mux.connect(dev, self.server.rport)
 		lsock = self.request
-		print "Connection established, relaying data"
+		print("Connection established, relaying data")
 		try:
 			fwd = SocketRelay(dsock, lsock, self.server.bufsize * 1024)
 			fwd.handle()
 		finally:
 			dsock.close()
 			lsock.close()
-		print "Connection closed"
+		print("Connection closed")
 
-class TCPServer(SocketServer.TCPServer):
+class TCPServer(socketserver.TCPServer):
 	allow_reuse_address = True
 
-class ThreadedTCPServer(SocketServer.ThreadingMixIn, TCPServer):
+class ThreadedTCPServer(socketserver.ThreadingMixIn, TCPServer):
 	pass
 
-HOST = "localhost"
+HOST = "0.0.0.0"
 
 parser = OptionParser(usage="usage: %prog [OPTIONS] RemotePort[:LocalPort] [RemotePort[:LocalPort]]...")
 parser.add_option("-t", "--threaded", dest='threaded', action='store_true', default=False, help="use threading to handle multiple connections at once")
@@ -131,7 +135,7 @@ for arg in args:
 servers=[]
 
 for rport, lport in ports:
-	print "Forwarding local port %d to remote port %d"%(lport, rport)
+	print("Forwarding local port %d to remote port %d"%(lport, rport))
 	server = serverclass((HOST, lport), TCPRelay)
 	server.rport = rport
 	server.bufsize = options.bufsize
