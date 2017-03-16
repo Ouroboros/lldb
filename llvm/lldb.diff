@@ -1,8 +1,8 @@
 diff --git a/cmake/modules/LLDBConfig.cmake b/cmake/modules/LLDBConfig.cmake
-index f5247a2..a2a992c 100644
+index 74d6e74..466eefd 100644
 --- a/cmake/modules/LLDBConfig.cmake
 +++ b/cmake/modules/LLDBConfig.cmake
-@@ -122,7 +122,7 @@ function(find_python_libs_windows)
+@@ -124,7 +124,7 @@ function(find_python_libs_windows)
      unset(PYTHON_RELEASE_DLL)
    endif()
  
@@ -11,68 +11,74 @@ index f5247a2..a2a992c 100644
      message("Python installation is corrupt. Python support will be disabled for this build.")
      set(LLDB_DISABLE_PYTHON 1 PARENT_SCOPE)
      return()
+@@ -178,7 +178,7 @@ if (NOT LLDB_DISABLE_PYTHON)
+   else()
+     find_package(PythonLibs REQUIRED)
+   endif()
+-  
++
+   if (PYTHON_INCLUDE_DIRS)
+     include_directories(${PYTHON_INCLUDE_DIRS})
+   endif()
 diff --git a/include/lldb/Core/Module.h b/include/lldb/Core/Module.h
-index 35b182a..2a367ba 100644
+index 90d75b6..a197c21 100644
 --- a/include/lldb/Core/Module.h
 +++ b/include/lldb/Core/Module.h
-@@ -710,6 +710,8 @@ public:
-     virtual SectionList *
-     GetSectionList ();
+@@ -641,6 +641,8 @@ public:
+   //------------------------------------------------------------------
+   virtual SectionList *GetSectionList();
  
-+    size_t GetModuleSize();
++  size_t GetModuleSize();
 +
-     //------------------------------------------------------------------
-     /// Notify the module that the file addresses for the Sections have
-     /// been updated.
+   //------------------------------------------------------------------
+   /// Notify the module that the file addresses for the Sections have
+   /// been updated.
 diff --git a/source/Commands/CommandObjectTarget.cpp b/source/Commands/CommandObjectTarget.cpp
-index 95c03e9..d6ac88b 100644
+index d2e53aa..c3b0ea6 100644
 --- a/source/Commands/CommandObjectTarget.cpp
 +++ b/source/Commands/CommandObjectTarget.cpp
-@@ -3362,8 +3362,9 @@ protected:
-         bool dump_object_name = false;
-         if (m_options.m_format_array.empty())
-         {
--            m_options.m_format_array.push_back(std::make_pair('u', 0));
-+            // m_options.m_format_array.push_back(std::make_pair('u', 0));
-             m_options.m_format_array.push_back(std::make_pair('h', 0));
-+            m_options.m_format_array.push_back(std::make_pair('l', 0));
-             m_options.m_format_array.push_back(std::make_pair('f', 0));
-             m_options.m_format_array.push_back(std::make_pair('S', 0));
-         }
-@@ -3400,6 +3401,12 @@ protected:
-                     dump_object_name = true;
-                     break;
+@@ -3011,8 +3011,9 @@ protected:
  
-+                case 'l':
-+                    {
-+                        strm.Printf("0x%X", module->GetModuleSize());
-+                    }
-+                    break;
+     bool dump_object_name = false;
+     if (m_options.m_format_array.empty()) {
+-      m_options.m_format_array.push_back(std::make_pair('u', 0));
++      // m_options.m_format_array.push_back(std::make_pair('u', 0));
+       m_options.m_format_array.push_back(std::make_pair('h', 0));
++      m_options.m_format_array.push_back(std::make_pair('l', 0));
+       m_options.m_format_array.push_back(std::make_pair('f', 0));
+       m_options.m_format_array.push_back(std::make_pair('S', 0));
+     }
+@@ -3047,6 +3048,10 @@ protected:
+         dump_object_name = true;
+         break;
+ 
++      case 'l':
++          strm.Printf("0x%X", module->GetModuleSize());
++          break;
 +
-                 case 'h':
-                 case 'o':
-                     // Image header address
-@@ -3424,12 +3431,12 @@ protected:
-                                         if (format_char == 'o')
-                                         {
-                                             // Show the offset of slide for the image
--                                            strm.Printf ("0x%*.*" PRIx64, addr_nibble_width, addr_nibble_width, header_load_addr - header_addr.GetFileAddress());
-+                                            strm.Printf ("0x%*.*" PRIX64, addr_nibble_width, addr_nibble_width, header_load_addr - header_addr.GetFileAddress());
-                                         }
-                                         else
-                                         {
-                                             // Show the load address of the image
--                                            strm.Printf ("0x%*.*" PRIx64, addr_nibble_width, addr_nibble_width, header_load_addr);
-+                                            strm.Printf ("0x%*.*" PRIX64, addr_nibble_width, addr_nibble_width, header_load_addr);
-                                         }
-                                     }
-                                     break;
+       case 'h':
+       case 'o':
+         // Image header address
+@@ -3070,11 +3075,11 @@ protected:
+                   if (format_char == 'o') {
+                     // Show the offset of slide for the image
+                     strm.Printf(
+-                        "0x%*.*" PRIx64, addr_nibble_width, addr_nibble_width,
++                        "0x%*.*" PRIX64, addr_nibble_width, addr_nibble_width,
+                         header_load_addr - header_addr.GetFileAddress());
+                   } else {
+                     // Show the load address of the image
+-                    strm.Printf("0x%*.*" PRIx64, addr_nibble_width,
++                    strm.Printf("0x%*.*" PRIX64, addr_nibble_width,
+                                 addr_nibble_width, header_load_addr);
+                   }
+                 }
 diff --git a/source/Core/Module.cpp b/source/Core/Module.cpp
-index a29456f..e6bebd2 100644
+index 28f140b..de17a1e 100644
 --- a/source/Core/Module.cpp
 +++ b/source/Core/Module.cpp
-@@ -1335,6 +1335,24 @@ Module::GetSectionList()
-     return m_sections_ap.get();
+@@ -1285,6 +1285,24 @@ SectionList *Module::GetSectionList() {
+   return m_sections_ap.get();
  }
  
 +size_t Module::GetModuleSize()
@@ -93,19 +99,18 @@ index a29456f..e6bebd2 100644
 +    return moduleSize;
 +}
 +
- void
- Module::SectionFileAddressesChanged ()
- {
+ void Module::SectionFileAddressesChanged() {
+   ObjectFile *obj_file = GetObjectFile();
+   if (obj_file)
 diff --git a/source/Initialization/SystemInitializerCommon.cpp b/source/Initialization/SystemInitializerCommon.cpp
-index a5e3c11..ab5b944 100644
+index 1139955..10782ef 100644
 --- a/source/Initialization/SystemInitializerCommon.cpp
 +++ b/source/Initialization/SystemInitializerCommon.cpp
-@@ -40,10 +40,12 @@
+@@ -23,9 +23,11 @@
+ #include "lldb/Host/HostInfo.h"
+ 
  #if defined(__APPLE__)
- #include "Plugins/Platform/MacOSX/PlatformiOSSimulator.h"
- #include "Plugins/DynamicLoader/Darwin-Kernel/DynamicLoaderDarwinKernel.h"
 -#include "Plugins/ObjectFile/Mach-O/ObjectFileMachO.h"
- #include "Plugins/Platform/MacOSX/PlatformDarwinKernel.h"
  #endif
  
 +#include "Plugins/ObjectFile/Mach-O/ObjectFileMachO.h"
@@ -114,29 +119,28 @@ index a5e3c11..ab5b944 100644
  #if defined(__linux__)
  #include "Plugins/Process/POSIX/ProcessPOSIXLog.h"
  #endif
-@@ -136,8 +138,8 @@ SystemInitializerCommon::Initialize()
-     PlatformiOSSimulator::Initialize();
-     DynamicLoaderDarwinKernel::Initialize();
-     PlatformDarwinKernel::Initialize();
--    ObjectFileMachO::Initialize();
- #endif
-+    ObjectFileMachO::Initialize();
- #if defined(__linux__)
-     static ConstString g_linux_log_name("linux");
-     ProcessPOSIXLog::Initialize(g_linux_log_name);
-@@ -181,9 +183,9 @@ SystemInitializerCommon::Terminate()
+@@ -91,8 +93,8 @@ void SystemInitializerCommon::Initialize() {
+   ObjectContainerUniversalMachO::Initialize();
+ 
  #if defined(__APPLE__)
-     PlatformiOSSimulator::Terminate();
-     DynamicLoaderDarwinKernel::Terminate();
--    ObjectFileMachO::Terminate();
-     PlatformDarwinKernel::Terminate();
+-  ObjectFileMachO::Initialize();
  #endif
-+    ObjectFileMachO::Terminate();
++  ObjectFileMachO::Initialize();
+ #if defined(__linux__)
+   static ConstString g_linux_log_name("linux");
+   ProcessPOSIXLog::Initialize(g_linux_log_name);
+@@ -114,8 +116,8 @@ void SystemInitializerCommon::Terminate() {
+ 
+   ObjectContainerUniversalMachO::Terminate();
+ #if defined(__APPLE__)
+-  ObjectFileMachO::Terminate();
+ #endif
++  ObjectFileMachO::Terminate();
  
  #if defined(_MSC_VER)
-     ProcessWindowsLog::Terminate();
+   ProcessWindowsLog::Terminate();
 diff --git a/source/Plugins/Process/Utility/RegisterContextDarwin_arm.cpp b/source/Plugins/Process/Utility/RegisterContextDarwin_arm.cpp
-index aa1bace..760c8e1 100644
+index 52ace56..feae6ff 100644
 --- a/source/Plugins/Process/Utility/RegisterContextDarwin_arm.cpp
 +++ b/source/Plugins/Process/Utility/RegisterContextDarwin_arm.cpp
 @@ -7,7 +7,7 @@
@@ -149,10 +153,10 @@ index aa1bace..760c8e1 100644
  #include "RegisterContextDarwin_arm.h"
  
 diff --git a/source/Plugins/Process/Utility/RegisterContextDarwin_arm64.cpp b/source/Plugins/Process/Utility/RegisterContextDarwin_arm64.cpp
-index 7de042d..e03f3a6 100644
+index 64983a2..4a74e54 100644
 --- a/source/Plugins/Process/Utility/RegisterContextDarwin_arm64.cpp
 +++ b/source/Plugins/Process/Utility/RegisterContextDarwin_arm64.cpp
-@@ -7,7 +7,7 @@
+@@ -8,7 +8,7 @@
  //
  //===----------------------------------------------------------------------===//
  
@@ -161,3 +165,16 @@ index 7de042d..e03f3a6 100644
  
  #include "RegisterContextDarwin_arm64.h"
  
+diff --git a/source/Target/Target.cpp b/source/Target/Target.cpp
+index 078fa6a..d6ddf56 100644
+--- a/source/Target/Target.cpp
++++ b/source/Target/Target.cpp
+@@ -3316,7 +3316,7 @@ static PropertyDefinition g_properties[] = {
+      eLoadScriptFromSymFileWarn, nullptr, g_load_script_from_sym_file_values,
+      "Allow LLDB to load scripting resources embedded in symbol files when "
+      "available."},
+-    {"load-cwd-lldbinit", OptionValue::eTypeEnum, false, eLoadCWDlldbinitWarn,
++    {"load-cwd-lldbinit", OptionValue::eTypeEnum, false, eLoadCWDlldbinitTrue,
+      nullptr, g_load_current_working_dir_lldbinit_values,
+      "Allow LLDB to .lldbinit files from the current directory automatically."},
+     {"memory-module-load-level", OptionValue::eTypeEnum, false,

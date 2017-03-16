@@ -3,7 +3,7 @@
 cd/d "%~dp0"
 cls
 
-set PATH=%~dp0tools\GetGnuWin32\bin;%~dp0tools\swigwin-3.0.5;%~dp0tools\cmake-3.2.2-win32-x86\bin;%PATH%
+set PATH=%~dp0tools\GetGnuWin32\bin;%~dp0tools\swigwin-3.0.5;%~dp0tools\cmake-3.8.0-rc2-win64-x64\bin;%PATH%
 set LLVM=%~dp0llvm\llvm
 set LLDB=%~dp0llvm\lldb
 set CLANG=%~dp0llvm\clang
@@ -35,7 +35,7 @@ mkdir %BUILD%
 cd %BUILD%
 
 if not exist build.ninja (
-    cmake -G Ninja "%~dp0llvm\llvm" -DCMAKE_BUILD_TYPE=RelWithDebInfo -DPYTHON_HOME=%~dp0Python35\%ARCH%\ -DPYTHON_EXECUTABLE=%~dp0Python35\%ARCH%\python.exe
+    cmake -G Ninja "%~dp0llvm\llvm" -DCMAKE_BUILD_TYPE=RelWithDebInfo -DPYTHON_HOME=%~dp0Python36\%ARCH%\ -DPYTHON_EXECUTABLE=%~dp0Python36\%ARCH%\python.exe
     call py "%~f0" "%~dp0%BUILD%\build.ninja"
 )
 

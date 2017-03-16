@@ -3,5 +3,5 @@
 build/
 __pycache__/
 _lldb.pyd
-/Python35/amd64
+/Python36/amd64
 /build_*
