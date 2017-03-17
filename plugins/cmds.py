@@ -1,4 +1,5 @@
 from ml import *
+from importlib import reload
 import lldb
 import shlex
 
@@ -11,7 +12,7 @@ def stub_command(debugger, command, result, internal_dict):
 def lldb_clear(debugger, command, result, internal_dict):
     console.clear()
 
-def lldb_set_watchpoint_common(debugger, type, command, result):
+def lldb_set_watchpoint_common(debugger, read, write, command, result):
     args = shlex.split(command)
 
     if not args or len(args) > 2:
@@ -19,19 +20,37 @@ def lldb_set_watchpoint_common(debugger, type, command, result):
         return
 
     if len(args) == 1:
-        args.append(1)
+        args.append('1')
 
     addr, size = args
-    debugger.HandleCommand('watchpoint set expression -w %s -s %s -- %s' % (type, size, addr))
+    addr, size = int(addr, 16), int(size, 16)
+
+    target = debugger.GetSelectedTarget()
+
+    # print('addr = 0x%x' % addr)
+    # print('size = %s' % size)
+    # print('read = %s' % read)
+    # print('write = %s' % write)
+    # print('target = %s %s' % (lldb.target, id(lldb.target)))
+    # print('debugger = %s %s' % (debugger, id(debugger)))
+
+    error = lldb.SBError()
+    wp = target.WatchAddress(addr, size, read, write, error)
+
+    print(wp)
+    if error.fail:
+        print('%s' % error)
+
+    # debugger.HandleCommand('watchpoint set expression -w %s -s %s -- %s' % (wp_type, size, addr))
 
 def lldb_set_watchpoint_read(debugger, command, result, internal_dict):
-    lldb_set_watchpoint_common(debugger, 'read', command, result)
+    lldb_set_watchpoint_common(debugger, True, False, command, result)
 
 def lldb_set_watchpoint_write(debugger, command, result, internal_dict):
-    lldb_set_watchpoint_common(debugger, 'write', command, result)
+    lldb_set_watchpoint_common(debugger, False, True, command, result)
 
 def lldb_set_watchpoint_access(debugger, command, result, internal_dict):
-    lldb_set_watchpoint_common(debugger, 'read_write', command, result)
+    lldb_set_watchpoint_common(debugger, True, True, command, result)
 
 def lldb_set_watchpoint_list(debugger, command, result, internal_dict):
     debugger.HandleCommand('watchpoint list')
