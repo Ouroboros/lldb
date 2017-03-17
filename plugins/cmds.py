@@ -27,13 +27,6 @@ def lldb_set_watchpoint_common(debugger, read, write, command, result):
 
     target = debugger.GetSelectedTarget()
 
-    # print('addr = 0x%x' % addr)
-    # print('size = %s' % size)
-    # print('read = %s' % read)
-    # print('write = %s' % write)
-    # print('target = %s %s' % (lldb.target, id(lldb.target)))
-    # print('debugger = %s %s' % (debugger, id(debugger)))
-
     error = lldb.SBError()
     wp = target.WatchAddress(addr, size, read, write, error)
 
