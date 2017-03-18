@@ -63,6 +63,23 @@ def lldb_set_watchpoint_delete(debugger, command, result, internal_dict):
     args = args and str(args[0]) or ''
     debugger.HandleCommand('watchpoint delete %s' % args)
 
+def lldb_set_breakpoint_on_main_module(debugger, command, result, internal_dict):
+    args = shlex.split(command)
+
+    if not args or len(args) != 1:
+        result.SetError('invalid args')
+        return
+
+    addr = int(args[0], 16)
+
+    target = debugger.GetSelectedTarget()
+
+    main = target.GetModuleAtIndex(0)
+    base = main.GetObjectFileHeaderAddress()
+    offset = base.load_addr - base.file_addr
+
+    debugger.HandleCommand('br set -a 0x%x' % (addr + offset))
+
 def lldb_delete_breakpoint(debugger, command, result, internal_dict):
     args = shlex.split(command)
     args = args and str(args[0]) or '-f'
@@ -76,16 +93,17 @@ def __lldb_init_module(debugger, internal_dict):
     self = __name__
 
     cmds = {
-        'lldb_clear'                    : 'cls',
-        'lldb_set_watchpoint_read'      : 'hr',
-        'lldb_set_watchpoint_write'     : 'hw',
-        'lldb_set_watchpoint_access'    : 'ha',
-        'lldb_set_watchpoint_enable'    : 'he',
-        'lldb_set_watchpoint_disable'   : 'hd',
-        'lldb_set_watchpoint_delete'    : 'hc',
-        'lldb_set_watchpoint_list'      : 'hl',
-        'lldb_delete_breakpoint'        : 'bc',
-        'lldb_process_kill'             : 'kp',
+        'lldb_clear'                        : 'cls',
+        'lldb_set_watchpoint_read'          : 'hr',
+        'lldb_set_watchpoint_write'         : 'hw',
+        'lldb_set_watchpoint_access'        : 'ha',
+        'lldb_set_watchpoint_enable'        : 'he',
+        'lldb_set_watchpoint_disable'       : 'hd',
+        'lldb_set_watchpoint_delete'        : 'hc',
+        'lldb_set_watchpoint_list'          : 'hl',
+        'lldb_process_kill'                 : 'kp',
+        'lldb_delete_breakpoint'            : 'bc',
+        'lldb_set_breakpoint_on_main_module': 'bpm',
     }
 
     for k, v in cmds.items():

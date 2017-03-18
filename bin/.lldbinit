@@ -1,4 +1,6 @@
 settings set target.x86-disassembly-flavor intel
+settings set target.max-memory-read-size 0x1000
+
 command alias bp breakpoint set -a %1
 command alias bl breakpoint list
 command alias conn process connect
@@ -8,3 +10,4 @@ command alias conn process connect --plugin gdb-remote connect://127.0.0.1:4321
 
 command script import ..\plugins\cmds.py
 command script import ..\plugins\chisel\fblldb.py
+command script import D:\Dev\Source\iOS\crackhelper\adid.py
