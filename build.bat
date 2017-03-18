@@ -39,10 +39,10 @@ if not exist build.ninja (
     call py "%~f0" "%~dp0%BUILD%\build.ninja"
 )
 
-echo.
-echo before run "ninja lldb", you may replace all "/INCREMENTAL" in build.ninja with "/OPT:REF"
-echo to reduce the binary size
-echo.
+rem echo.
+rem echo before run "ninja lldb", you may replace all "/INCREMENTAL" in build.ninja with "/OPT:REF"
+rem echo to reduce the binary size
+rem echo.
 
 cmd/k
 
