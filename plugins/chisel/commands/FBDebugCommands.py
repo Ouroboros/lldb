@@ -46,9 +46,9 @@ class FBWatchInstanceVariableCommand(fb.FBCommand):
     watchpoint = lldb.debugger.GetSelectedTarget().WatchAddress(objectAddress + ivarOffset, ivarSize, False, True, error)
 
     if error.Success():
-      print('Remember to delete the watchpoint using: watchpoint delete {}'.format(watchpoint.GetID()))
+      print 'Remember to delete the watchpoint using: watchpoint delete {}'.format(watchpoint.GetID())
     else:
-      print('Could not create the watchpoint: {}'.format(error.GetCString()))
+      print 'Could not create the watchpoint: {}'.format(error.GetCString())
 
 class FBFrameworkAddressBreakpointCommand(fb.FBCommand):
   def name(self):
@@ -96,12 +96,12 @@ class FBMethodBreakpointCommand(fb.FBCommand):
     match = methodPattern.match(expression)
 
     if not match:
-      print('Failed to parse expression. Do you even Objective-C?!')
+      print 'Failed to parse expression. Do you even Objective-C?!'
       return
 
     expressionForSelf = objc.functionPreambleExpressionForSelf()
     if not expressionForSelf:
-      print('Your architecture, {}, is truly fantastic. However, I don\'t currently support it.'.format(arch))
+      print 'Your architecture, {}, is truly fantastic. However, I don\'t currently support it.'.format(arch)
       return
 
     methodTypeCharacter = match.group('scope')
@@ -127,7 +127,7 @@ class FBMethodBreakpointCommand(fb.FBCommand):
     targetClass = fb.evaluateObjectExpression('[{} class]'.format(targetObject), False)
 
     if not targetClass or int(targetClass, 0) == 0:
-      print('Couldn\'t find a class from the expression "{}". Did you typo?'.format(classNameOrExpression))
+      print 'Couldn\'t find a class from the expression "{}". Did you typo?'.format(classNameOrExpression)
       return
 
     if methodIsClassMethod:
@@ -143,7 +143,7 @@ class FBMethodBreakpointCommand(fb.FBCommand):
         nextClass = objc.class_getSuperclass(nextClass)
 
     if not found:
-      print('There doesn\'t seem to be an implementation of {} in the class hierarchy. Made a boo boo with the selector name?'.format(selector))
+      print 'There doesn\'t seem to be an implementation of {} in the class hierarchy. Made a boo boo with the selector name?'.format(selector)
       return
 
     breakpointClassName = objc.class_getName(nextClass)
@@ -155,7 +155,7 @@ class FBMethodBreakpointCommand(fb.FBCommand):
     else:
       breakpointCondition = '(void*){} == {}'.format(expressionForSelf, targetObject)
 
-    print('Setting a breakpoint at {} with condition {}'.format(breakpointFullName, breakpointCondition))
+    print 'Setting a breakpoint at {} with condition {}'.format(breakpointFullName, breakpointCondition)
 
     if category:
       lldb.debugger.HandleCommand('breakpoint set --skip-prologue false --fullname "{}" --condition "{}"'.format(breakpointFullName, breakpointCondition))
@@ -183,4 +183,4 @@ class FBMemoryWarningCommand(fb.FBCommand):
     return 'simulate a memory warning'
 
   def run(self, arguments, options):
-    lldb.debugger.HandleCommand('expr (void)[[UIApplication sharedApplication] performSelector:@selector(_performMemoryWarning)];')
+    fb.evaluateEffect('[[UIApplication sharedApplication] performSelector:@selector(_performMemoryWarning)]')
