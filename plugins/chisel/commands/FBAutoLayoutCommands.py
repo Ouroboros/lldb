@@ -31,7 +31,7 @@ class FBPrintAutolayoutTrace(fb.FBCommand):
 
   def run(self, arguments, options):
     view = fb.evaluateInputExpression(arguments[0])
-    print fb.describeObject('[{} _autolayoutTrace]'.format(view))
+    print(fb.describeObject('[{} _autolayoutTrace]'.format(view)))
 
 
 def setBorderOnAmbiguousViewRecursive(view, width, color):
