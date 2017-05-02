@@ -7,7 +7,8 @@ command alias conn process connect
 command alias rtc breakpoint set -o -a %1
 command alias pof expression -OAv -- %1
 command alias conn process connect --plugin gdb-remote connect://127.0.0.1:4321
+command alias fo target modules lookup -a %1
 
 command script import ..\plugins\cmds.py
 command script import ..\plugins\chisel\fblldb.py
-command script import D:\Dev\Source\iOS\crackhelper\adid.py
+command script import D:\Dev\Source\iOS\crackhelper\kbsync.py
