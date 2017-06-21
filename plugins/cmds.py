@@ -89,6 +89,24 @@ def lldb_process_kill(debugger, command, result, internal_dict):
     debugger.HandleCommand('process kill')
     debugger.HandleCommand('target delete --all')
 
+def lldb_objc_method(debugger, command, result, internal_dict):
+    args = shlex.split(command)
+
+    if not args or len(args) != 2:
+        result.SetError('invalid args')
+        return
+
+    debugger.HandleCommand('expression -- (void*)method_getImplementation((void*)class_getInstanceMethod((void*)objc_getClass("%s"),@selector(%s)))' % (args[0], args[1]))
+
+def lldb_objc_shortMethodDescription(debugger, command, result, internal_dict):
+    args = shlex.split(command)
+
+    if not args or len(args) != 1:
+        result.SetError('invalid args')
+        return
+
+    debugger.HandleCommand('expression -O -- [%s _shortMethodDescription]' % args[0])
+
 def __lldb_init_module(debugger, internal_dict):
     self = __name__
 
@@ -104,6 +122,9 @@ def __lldb_init_module(debugger, internal_dict):
         'lldb_process_kill'                 : 'kp',
         'lldb_delete_breakpoint'            : 'bc',
         'lldb_set_breakpoint_on_main_module': 'bpm',
+
+        'lldb_objc_method'                  : 'ocm',
+        'lldb_objc_shortMethodDescription'  : 'smd',
     }
 
     for k, v in cmds.items():

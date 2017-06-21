@@ -8,6 +8,7 @@ command alias rtc breakpoint set -o -a %1
 command alias pof expression -OAv -- %1
 command alias conn process connect --plugin gdb-remote connect://127.0.0.1:4321
 command alias fo target modules lookup -a %1
+command alias load_uikit expression -- (void *)dlopen("/System/Library/Frameworks/UIKit.framework/UIKit", 0)
 
 command script import ..\plugins\cmds.py
 command script import ..\plugins\chisel\fblldb.py
