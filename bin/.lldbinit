@@ -12,4 +12,4 @@ command alias load_uikit expression -- (void *)dlopen("/System/Library/Framework
 
 command script import ..\plugins\cmds.py
 command script import ..\plugins\chisel\fblldb.py
-command script import D:\Dev\Source\iOS\crackhelper\kbsync.py
+command script import D:\Dev\Source\iOS\crackhelper\absd.py
