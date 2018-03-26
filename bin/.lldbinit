@@ -1,6 +1,7 @@
 settings set target.x86-disassembly-flavor intel
 settings set target.max-memory-read-size 0x1000
 
+command alias n ni
 command alias bp breakpoint set -a %1
 command alias bl breakpoint list
 command alias conn process connect
