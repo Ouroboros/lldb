@@ -63,19 +63,37 @@ def lldb_set_watchpoint_delete(debugger, command, result, internal_dict):
     args = args and str(args[0]) or ''
     debugger.HandleCommand('watchpoint delete %s' % args)
 
-def lldb_set_breakpoint_on_main_module(debugger, command, result, internal_dict):
+def lldb_set_breakpoint_on_module(debugger, command, result, internal_dict):
     args = shlex.split(command)
 
     if not args or len(args) != 1:
         result.SetError('invalid args')
         return
 
-    addr = int(args[0], 16)
-
     target = debugger.GetSelectedTarget()
 
-    main = target.GetModuleAtIndex(0)
-    base = main.GetObjectFileHeaderAddress()
+    addr = args[0]
+
+    if addr.count('.') == 1:
+        module, addr = addr.split('.', maxsplit = 1)
+        for m in target.modules:
+            if m.file.basename.lower() != module.lower():
+                continue
+
+            module = m
+
+            break
+
+        else:
+            result.SetError('module not found: %s' % module)
+            return
+
+    else:
+        module = target.GetModuleAtIndex(0)
+
+    addr = int(addr, 16)
+
+    base = module.GetObjectFileHeaderAddress()
     offset = base.load_addr - base.file_addr
 
     debugger.HandleCommand('br set -a 0x%x' % (addr + offset))
@@ -130,7 +148,7 @@ def __lldb_init_module(debugger, internal_dict):
         'lldb_set_watchpoint_list'          : 'hl',
         'lldb_process_kill'                 : 'kp',
         'lldb_delete_breakpoint'            : 'bc',
-        'lldb_set_breakpoint_on_main_module': 'bpm',
+        'lldb_set_breakpoint_on_module'     : 'bpm',
 
         'lldb_objc_instance_method'         : 'oim',
         'lldb_objc_class_method'            : 'ocm',
