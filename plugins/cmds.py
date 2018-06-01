@@ -74,8 +74,15 @@ def lldb_set_breakpoint_on_module(debugger, command, result, internal_dict):
 
     addr = args[0]
 
+    sep = None
+
     if addr.count('.') == 1:
-        module, addr = addr.split('.', maxsplit = 1)
+        sep = '.'
+    elif addr.count(':__text:') == 1:
+        sep = ':__text:'
+
+    if sep is not None:
+        module, addr = addr.split(sep, maxsplit = 1)
         for m in target.modules:
             if m.file.basename.lower() != module.lower():
                 continue
