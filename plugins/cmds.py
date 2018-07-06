@@ -76,10 +76,10 @@ def lldb_set_breakpoint_on_module(debugger, command, result, internal_dict):
 
     sep = None
 
-    if addr.count('.') == 1:
-        sep = '.'
-    elif addr.count(':__text:') == 1:
+    if addr.count(':__text:') == 1:
         sep = ':__text:'
+    elif addr.count('.') == 1:
+        sep = '.'
 
     if sep is not None:
         module, addr = addr.split(sep, maxsplit = 1)
