@@ -3,13 +3,13 @@ from importlib import reload
 import lldb
 import shlex
 
-def stub_command(debugger, command, result, internal_dict):
+def stub_command(debugger, command, exe_ctx, result, internal_dict):
     ibp()
     print(debugger)
     print(command)
     print(result)
 
-def lldb_clear(debugger, command, result, internal_dict):
+def lldb_clear(debugger, command, exe_ctx, result, internal_dict):
     console.clear()
 
 def lldb_set_watchpoint_common(debugger, read, write, command, result):
@@ -36,34 +36,34 @@ def lldb_set_watchpoint_common(debugger, read, write, command, result):
 
     # debugger.HandleCommand('watchpoint set expression -w %s -s %s -- %s' % (wp_type, size, addr))
 
-def lldb_set_watchpoint_read(debugger, command, result, internal_dict):
+def lldb_set_watchpoint_read(debugger, command, exe_ctx, result, internal_dict):
     lldb_set_watchpoint_common(debugger, True, False, command, result)
 
-def lldb_set_watchpoint_write(debugger, command, result, internal_dict):
+def lldb_set_watchpoint_write(debugger, command, exe_ctx, result, internal_dict):
     lldb_set_watchpoint_common(debugger, False, True, command, result)
 
-def lldb_set_watchpoint_access(debugger, command, result, internal_dict):
+def lldb_set_watchpoint_access(debugger, command, exe_ctx, result, internal_dict):
     lldb_set_watchpoint_common(debugger, True, True, command, result)
 
-def lldb_set_watchpoint_list(debugger, command, result, internal_dict):
+def lldb_set_watchpoint_list(debugger, command, exe_ctx, result, internal_dict):
     debugger.HandleCommand('watchpoint list')
 
-def lldb_set_watchpoint_enable(debugger, command, result, internal_dict):
+def lldb_set_watchpoint_enable(debugger, command, exe_ctx, result, internal_dict):
     args = shlex.split(command)
     args = args and str(args[0]) or ''
     debugger.HandleCommand('watchpoint enable %s' % args)
 
-def lldb_set_watchpoint_disable(debugger, command, result, internal_dict):
+def lldb_set_watchpoint_disable(debugger, command, exe_ctx, result, internal_dict):
     args = shlex.split(command)
     args = args and str(args[0]) or ''
     debugger.HandleCommand('watchpoint disable %s' % args)
 
-def lldb_set_watchpoint_delete(debugger, command, result, internal_dict):
+def lldb_set_watchpoint_delete(debugger, command, exe_ctx, result, internal_dict):
     args = shlex.split(command)
     args = args and str(args[0]) or ''
     debugger.HandleCommand('watchpoint delete %s' % args)
 
-def lldb_set_breakpoint_on_module(debugger, command, result, internal_dict):
+def lldb_set_breakpoint_on_module(debugger, command, exe_ctx, result, internal_dict):
     args = shlex.split(command)
 
     if not args or len(args) != 1:
@@ -78,11 +78,11 @@ def lldb_set_breakpoint_on_module(debugger, command, result, internal_dict):
 
     if addr.count(':__text:') == 1:
         sep = ':__text:'
-    elif addr.count('.') == 1:
+    elif addr.find('.') != -1:
         sep = '.'
 
     if sep is not None:
-        module, addr = addr.split(sep, maxsplit = 1)
+        module, addr = addr.rsplit(sep, maxsplit = 1)
         for m in target.modules:
             if m.file.basename.lower() != module.lower():
                 continue
@@ -105,16 +105,16 @@ def lldb_set_breakpoint_on_module(debugger, command, result, internal_dict):
 
     debugger.HandleCommand('br set -a 0x%x' % (addr + offset))
 
-def lldb_delete_breakpoint(debugger, command, result, internal_dict):
+def lldb_delete_breakpoint(debugger, command, exe_ctx, result, internal_dict):
     args = shlex.split(command)
     args = args and str(args[0]) or '-f'
     debugger.HandleCommand('breakpoint del %s' % args)
 
-def lldb_process_kill(debugger, command, result, internal_dict):
+def lldb_process_kill(debugger, command, exe_ctx, result, internal_dict):
     debugger.HandleCommand('process kill')
     debugger.HandleCommand('target delete --all')
 
-def lldb_objc_instance_method(debugger, command, result, internal_dict):
+def lldb_objc_instance_method(debugger, command, exe_ctx, result, internal_dict):
     args = shlex.split(command)
 
     if not args or len(args) != 2:
@@ -123,7 +123,7 @@ def lldb_objc_instance_method(debugger, command, result, internal_dict):
 
     debugger.HandleCommand('expression -- (void*)method_getImplementation((void*)class_getInstanceMethod((void*)objc_getClass("%s"),@selector(%s)))' % (args[0], args[1]))
 
-def lldb_objc_class_method(debugger, command, result, internal_dict):
+def lldb_objc_class_method(debugger, command, exe_ctx, result, internal_dict):
     args = shlex.split(command)
 
     if not args or len(args) != 2:
@@ -132,7 +132,7 @@ def lldb_objc_class_method(debugger, command, result, internal_dict):
 
     debugger.HandleCommand('expression -- (void*)method_getImplementation((void*)class_getClassMethod((void*)objc_getClass("%s"),@selector(%s)))' % (args[0], args[1]))
 
-def lldb_objc_shortMethodDescription(debugger, command, result, internal_dict):
+def lldb_objc_shortMethodDescription(debugger, command, exe_ctx, result, internal_dict):
     args = shlex.split(command)
 
     if not args or len(args) != 1:
